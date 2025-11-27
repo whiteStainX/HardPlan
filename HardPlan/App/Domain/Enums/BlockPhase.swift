@@ -2,11 +2,14 @@
 //  BlockPhase.swift
 //  HardPlan
 //
-//  Placeholder created for Phase 1 directory setup.
-//  Implementation will be expanded in Step 1.2.
+//  Generated during Phase 1.2 to match DATA_SCHEMA specifications.
 
 import Foundation
 
 enum BlockPhase: String, Codable {
-    case placeholder
+    case accumulation = "Accumulation"
+    case intensification = "Intensification"
+    case realization = "Realization"
+    case deload = "Deload"
+    case introductory = "Introductory"
 }
