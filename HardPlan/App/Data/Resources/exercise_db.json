@@ -1,1 +1,156 @@
-[]
+[
+  {
+    "id": "squat_back_barbell",
+    "name": "Barbell Back Squat",
+    "pattern": "Squat",
+    "type": "Compound",
+    "equipment": "Barbell",
+    "primaryMuscle": "Quads",
+    "secondaryMuscles": [
+      { "id": "6e27b7b0-2c07-4d13-8f3f-14c4df40d664", "muscle": "Glutes", "factor": 0.8 },
+      { "id": "f6fc1d9f-5b2c-42fa-8a56-385059ab6c4f", "muscle": "Hamstrings", "factor": 0.6 },
+      { "id": "d3bb62be-6b7a-4d3d-bb3a-3d5a4a5c53d5", "muscle": "Back_Lower", "factor": 0.4 }
+    ],
+    "defaultTempo": "3-0-1-0",
+    "tier": "Tier1",
+    "isCompetitionLift": true,
+    "isUserCreated": false
+  },
+  {
+    "id": "bench_press_barbell",
+    "name": "Barbell Bench Press",
+    "pattern": "Push_Horizontal",
+    "type": "Compound",
+    "equipment": "Barbell",
+    "primaryMuscle": "Chest",
+    "secondaryMuscles": [
+      { "id": "f38a3f1f-25e1-4f6d-90ed-c9e50b0ae0f3", "muscle": "Delts_Front", "factor": 0.6 },
+      { "id": "e1f2c2f3-75e0-4f12-92a5-88e8a4773e3b", "muscle": "Triceps", "factor": 0.7 }
+    ],
+    "defaultTempo": "3-1-x-0",
+    "tier": "Tier1",
+    "isCompetitionLift": true,
+    "isUserCreated": false
+  },
+  {
+    "id": "deadlift_conventional",
+    "name": "Conventional Deadlift",
+    "pattern": "Hinge",
+    "type": "Compound",
+    "equipment": "Barbell",
+    "primaryMuscle": "Hamstrings",
+    "secondaryMuscles": [
+      { "id": "e6cbb6d7-4741-4766-8dcb-7fa05338b6cf", "muscle": "Glutes", "factor": 0.7 },
+      { "id": "0a08dffe-3d40-4b56-a4c7-84c1df3b263b", "muscle": "Back_Lats", "factor": 0.5 },
+      { "id": "ff22d0e4-5f38-4b6f-bb9e-f11b2c5e0bda", "muscle": "Back_Lower", "factor": 0.6 }
+    ],
+    "defaultTempo": "2-0-1-0",
+    "tier": "Tier1",
+    "isCompetitionLift": true,
+    "isUserCreated": false
+  },
+  {
+    "id": "overhead_press_barbell",
+    "name": "Barbell Overhead Press",
+    "pattern": "Push_Vertical",
+    "type": "Compound",
+    "equipment": "Barbell",
+    "primaryMuscle": "Delts_Front",
+    "secondaryMuscles": [
+      { "id": "bd5a3c4b-8b6b-4f19-8aa3-3ca0b85ae2e5", "muscle": "Delts_Side", "factor": 0.6 },
+      { "id": "bde0ad74-477c-44c8-bfeb-0735f2850ab0", "muscle": "Triceps", "factor": 0.7 }
+    ],
+    "defaultTempo": "2-0-1-1",
+    "tier": "Tier2",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  },
+  {
+    "id": "barbell_row",
+    "name": "Barbell Row",
+    "pattern": "Pull_Horizontal",
+    "type": "Compound",
+    "equipment": "Barbell",
+    "primaryMuscle": "Back_Lats",
+    "secondaryMuscles": [
+      { "id": "6d76b191-9b40-4c79-8538-2806769b415b", "muscle": "Back_Traps", "factor": 0.6 },
+      { "id": "a68c227a-43a0-45f4-8b0c-1c4f7f4e4b8b", "muscle": "Biceps", "factor": 0.5 },
+      { "id": "c1f03d6c-a3d1-4b76-b5d7-803a472f0481", "muscle": "Back_Lower", "factor": 0.3 }
+    ],
+    "defaultTempo": "2-1-1-1",
+    "tier": "Tier2",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  },
+  {
+    "id": "leg_extension_machine",
+    "name": "Leg Extension",
+    "pattern": "Isolation",
+    "type": "Machine",
+    "equipment": "Machine",
+    "primaryMuscle": "Quads",
+    "secondaryMuscles": [],
+    "defaultTempo": "2-1-2-1",
+    "tier": "Tier3",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  },
+  {
+    "id": "leg_curl_machine",
+    "name": "Leg Curl",
+    "pattern": "Isolation",
+    "type": "Machine",
+    "equipment": "Machine",
+    "primaryMuscle": "Hamstrings",
+    "secondaryMuscles": [
+      { "id": "d5a7db9f-d4ed-4f5d-9e28-11a6ba552e73", "muscle": "Calves", "factor": 0.2 }
+    ],
+    "defaultTempo": "2-1-2-0",
+    "tier": "Tier3",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  },
+  {
+    "id": "lateral_raise_dumbbell",
+    "name": "Dumbbell Lateral Raise",
+    "pattern": "Isolation",
+    "type": "Isolation",
+    "equipment": "Dumbbell",
+    "primaryMuscle": "Delts_Side",
+    "secondaryMuscles": [
+      { "id": "3c0c8c5a-3eb1-4d31-85b8-2a0a93421b60", "muscle": "Delts_Rear", "factor": 0.2 }
+    ],
+    "defaultTempo": "2-1-2-1",
+    "tier": "Tier3",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  },
+  {
+    "id": "tricep_pushdown_cable",
+    "name": "Cable Tricep Pushdown",
+    "pattern": "Isolation",
+    "type": "Isolation",
+    "equipment": "Cable",
+    "primaryMuscle": "Triceps",
+    "secondaryMuscles": [
+      { "id": "52c20a07-4de7-4f1b-8f46-8f9dbbd03006", "muscle": "Delts_Front", "factor": 0.2 }
+    ],
+    "defaultTempo": "2-0-1-1",
+    "tier": "Tier3",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  },
+  {
+    "id": "bicep_curl_dumbbell",
+    "name": "Dumbbell Bicep Curl",
+    "pattern": "Isolation",
+    "type": "Isolation",
+    "equipment": "Dumbbell",
+    "primaryMuscle": "Biceps",
+    "secondaryMuscles": [],
+    "defaultTempo": "2-0-2-1",
+    "tier": "Tier3",
+    "isCompetitionLift": false,
+    "isUserCreated": false
+  }
+]
