@@ -2,11 +2,28 @@
 //  UserRepository.swift
 //  HardPlan
 //
-//  Placeholder created for Phase 1 directory setup.
-//  Implementation will be added in Step 1.4.
+//  Implements user profile persistence using JSONPersistenceController.
 
 import Foundation
 
-protocol UserRepositoryProtocol {}
+protocol UserRepositoryProtocol {
+    func saveProfile(_ profile: UserProfile)
+    func getProfile() -> UserProfile?
+}
 
-struct UserRepository: UserRepositoryProtocol {}
+struct UserRepository: UserRepositoryProtocol {
+    private let persistenceController: JSONPersistenceController
+    private let filename = "user.json"
+
+    init(persistenceController: JSONPersistenceController = JSONPersistenceController()) {
+        self.persistenceController = persistenceController
+    }
+
+    func saveProfile(_ profile: UserProfile) {
+        persistenceController.save(profile, to: filename)
+    }
+
+    func getProfile() -> UserProfile? {
+        persistenceController.load(from: filename)
+    }
+}
