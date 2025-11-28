@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import Combine
 
 struct PostBlockAssessmentView: View {
     @EnvironmentObject private var appState: AppState
@@ -163,7 +164,7 @@ struct PostBlockAssessmentView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(isPrimary ? .borderedProminent : .bordered)
+//        .buttonStyle(isPrimary ? .borderedProminent : .bordered)
         .tint(decision == .deload ? .orange : .blue)
     }
 }
