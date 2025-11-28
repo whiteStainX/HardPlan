@@ -12,8 +12,8 @@
 
 **Directory Tree:**
 ```text
-HardPlan/
-├── App/
+/
+├── HardPlan/
 │   ├── HardPlanApp.swift (Entry point)
 │   ├── Core/
 │   │   ├── AppState.swift (Placeholder)
@@ -40,12 +40,13 @@ HardPlan/
 │   │   └── Resources/
 │   │       └── exercise_db.json
 │   └── Services/ (Empty for now)
-├── Tests/
-│   ├── UnitTests/
-│   │   ├── DataTests/
-│   │   │   ├── PersistenceTests.swift
-│   │   │   └── RepositoryTests.swift
-│   │   └── DomainTests/
+└── HardPlanTests/
+    └── UnitTests/
+        ├── DataTests/
+        │   ├── PersistenceTests.swift
+        │   └── RepositoryTests.swift
+        └── DomainTests/
+            └── DomainModelTests.swift
 ```
 
 ---
@@ -145,7 +146,7 @@ HardPlan/
 
 **Action:** Verify the stack works.
 
-*   **File:** `Tests/UnitTests/DataTests/RepositoryTests.swift`
+*   **File:** `HardPlanTests/DataTests/RepositoryTests.swift`
 *   **Test 1:** `testSaveAndLoadUserProfile()`
     *   Create a UserProfile.
     *   Save it.
