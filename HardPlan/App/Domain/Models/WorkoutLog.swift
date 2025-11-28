@@ -6,7 +6,7 @@
 
 import Foundation
 
-struct Tempo: Identifiable, Codable, Equatable {
+struct Tempo: Identifiable, Codable, Equatable, Hashable {
     var id: UUID = UUID()
     var eccentric: Int
     var pause: Int

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct WorkoutSessionView: View {
     @EnvironmentObject private var appState: AppState
@@ -10,6 +11,8 @@ struct WorkoutSessionView: View {
     @State private var substitutionOptions: [SubstitutionOption] = []
     @State private var substitutionError: String?
     @State private var toastMessage: String?
+    @State private var completedExercises: [CompletedExercise] = []
+    @State private var showingSummary = false
 
     init(session: ScheduledSession) {
         _viewModel = StateObject(wrappedValue: WorkoutSessionViewModel(session: session))
@@ -38,12 +41,28 @@ struct WorkoutSessionView: View {
             .toggleStyle(.switch)
         }
         .safeAreaInset(edge: .bottom) {
-            if let remaining = restTimeRemaining {
-                RestTimerView(remainingSeconds: remaining) {
-                    stopRestTimer()
+            VStack(spacing: 12) {
+                if let remaining = restTimeRemaining {
+                    RestTimerView(remainingSeconds: remaining) {
+                        stopRestTimer()
+                    }
+                    .transition(.move(edge: .bottom))
                 }
-                .transition(.move(edge: .bottom))
+
+                Button(action: finishWorkout) {
+                    HStack {
+                        Image(systemName: "flag.checkered")
+                        Text("Finish Workout")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+                .disabled(!viewModel.hasCompletedSets())
             }
+            .background(.ultraThinMaterial)
         }
         .onDisappear {
             stopRestTimer()
@@ -95,6 +114,18 @@ struct WorkoutSessionView: View {
         }
         .onChange(of: appState.userProfile) { newValue in
             viewModel.updateUserProfile(newValue)
+        }
+        .sheet(isPresented: $showingSummary) {
+            NavigationStack {
+                WorkoutSummaryView(
+                    session: viewModel.session,
+                    completedExercises: completedExercises,
+                    startedAt: viewModel.startedAt,
+                    mode: viewModel.isShortOnTime ? .shortOnTime : .normal,
+                    dismissAction: { showingSummary = false }
+                )
+                .environmentObject(appState)
+            }
         }
     }
 
@@ -188,6 +219,17 @@ struct WorkoutSessionView: View {
 
         substitutionOptions = options
         swapTarget = entry
+    }
+
+    private func finishWorkout() {
+        let logReadyExercises = viewModel.buildCompletedExercises()
+        guard !logReadyExercises.isEmpty else {
+            toastMessage = "Log at least one set to finish."
+            return
+        }
+
+        completedExercises = logReadyExercises
+        showingSummary = true
     }
 }
 

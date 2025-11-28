@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 struct EditableSet: Identifiable, Equatable {
     let id: UUID
@@ -41,6 +42,7 @@ struct ExerciseEntry: Identifiable, Equatable {
     var scheduled: ScheduledExercise
     var exerciseName: String
     var sets: [EditableSet]
+    var originalExerciseId: String
 }
 
 @MainActor
@@ -49,6 +51,8 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published var exerciseEntries: [ExerciseEntry]
     @Published var isShortOnTime: Bool = false
     @Published var toastMessage: String?
+
+    let startedAt: Date
 
     private var originalSession: ScheduledSession
     private let exerciseRepository: ExerciseRepositoryProtocol
@@ -73,6 +77,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         self.allExercises = exercises
         self.substitutionService = substitutionService
         self.exerciseEntries = []
+        self.startedAt = Date()
 
         rebuildEntries(from: session, preserving: [])
     }
@@ -165,7 +170,8 @@ final class WorkoutSessionViewModel: ObservableObject {
                 return ExerciseEntry(
                     scheduled: scheduled,
                     exerciseName: name,
-                    sets: sets
+                    sets: sets,
+                    originalExerciseId: existing?.originalExerciseId ?? scheduled.exerciseId
                 )
             }
     }
@@ -221,6 +227,47 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func roundToIncrement(_ value: Double, increment: Double) -> Double {
         guard increment > 0 else { return value }
         return (value / increment).rounded() * increment
+    }
+
+    func hasCompletedSets() -> Bool {
+        exerciseEntries.contains { entry in
+            entry.sets.contains { $0.isComplete && $0.isValid }
+        }
+    }
+
+    func buildCompletedExercises() -> [CompletedExercise] {
+        exerciseEntries.compactMap { entry in
+            let sets = entry.sets.compactMap { set -> CompletedSet? in
+                guard set.isComplete,
+                      let load = Double(set.load),
+                      let reps = Int(set.reps) else {
+                    return nil
+                }
+
+                var tags: [SetTag] = []
+                if isShortOnTime { tags.append(.aps) }
+
+                return CompletedSet(
+                    setNumber: set.setNumber,
+                    targetLoad: set.targetLoad,
+                    targetReps: set.targetReps,
+                    load: load,
+                    reps: reps,
+                    rpe: set.rpe,
+                    tags: tags
+                )
+            }
+
+            guard !sets.isEmpty else { return nil }
+
+            let wasSwapped = entry.scheduled.exerciseId != entry.originalExerciseId
+            return CompletedExercise(
+                exerciseId: entry.scheduled.exerciseId,
+                sets: sets,
+                wasSwapped: wasSwapped,
+                originalExerciseId: wasSwapped ? entry.originalExerciseId : nil
+            )
+        }
     }
 }
 

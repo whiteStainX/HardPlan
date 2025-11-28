@@ -37,7 +37,7 @@ struct ProgressionState: Identifiable, Codable, Equatable {
     }
 }
 
-struct ScheduledExercise: Identifiable, Codable, Equatable {
+struct ScheduledExercise: Identifiable, Codable, Equatable, Hashable {
     var id: UUID = UUID()
     var exerciseId: String
     var order: Int
@@ -76,7 +76,7 @@ struct ScheduledExercise: Identifiable, Codable, Equatable {
     }
 }
 
-struct ScheduledSession: Identifiable, Codable, Equatable {
+struct ScheduledSession: Identifiable, Codable, Equatable, Hashable {
     var id: UUID = UUID()
     var dayOfWeek: Int
     var name: String
