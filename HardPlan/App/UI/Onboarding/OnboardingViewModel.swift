@@ -21,15 +21,24 @@ final class OnboardingViewModel: ObservableObject {
     @Published var selectedGoal: Goal = .hypertrophy
     @Published var selectedTrainingAge: TrainingAge = .novice
     @Published var availableDays: Int = 3
-    @Published var weakPoints: [MuscleGroup] = []
+    @Published var weakPoints: [MuscleGroup] = [] {
+        didSet { regenerateBlocks() }
+    }
+    @Published var weeklyBlocks: [WorkoutBlock] = []
+    @Published var dayAssignments: [Int: WorkoutBlock] = [:]
     @Published var unit: UnitSystem = .lbs
     @Published var minPlateIncrement: Double = 2.5
     @Published var isGenerating: Bool = false
 
-    private var onboardingAction: ((UserProfile) -> Void)?
+    private var onboardingAction: ((UserProfile, [Int: WorkoutBlock]?) -> Void)?
+    private let programGenerator: ProgramGeneratorProtocol
     private var hasConfiguredHandler = false
 
-    func configure(onboardingAction: @escaping (UserProfile) -> Void) {
+    init(programGenerator: ProgramGeneratorProtocol = DependencyContainer.shared.resolve()) {
+        self.programGenerator = programGenerator
+    }
+
+    func configure(onboardingAction: @escaping (UserProfile, [Int: WorkoutBlock]?) -> Void) {
         guard !hasConfiguredHandler else { return }
         self.onboardingAction = onboardingAction
         hasConfiguredHandler = true
@@ -41,6 +50,7 @@ final class OnboardingViewModel: ObservableObject {
 
     func selectGoal(_ goal: Goal) {
         selectedGoal = goal
+        regenerateBlocks()
     }
 
     func advanceFromGoal() {
@@ -53,14 +63,17 @@ final class OnboardingViewModel: ObservableObject {
 
     func selectTrainingAge(_ trainingAge: TrainingAge) {
         selectedTrainingAge = trainingAge
+        regenerateBlocks()
     }
 
     func advanceFromExperience() {
+        regenerateBlocks()
         step = .schedule
     }
 
     func updateAvailableDays(_ days: Int) {
         availableDays = max(2, min(6, days))
+        regenerateBlocks()
     }
 
     func advanceFromSchedule() {
@@ -72,10 +85,11 @@ final class OnboardingViewModel: ObservableObject {
         isGenerating = true
 
         let profile = buildProfile()
+        let assignments = dayAssignments.isEmpty ? nil : dayAssignments
         let action = onboardingAction
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            action?(profile)
+            action?(profile, assignments)
         }
     }
 
@@ -91,12 +105,39 @@ final class OnboardingViewModel: ObservableObject {
         return nil
     }
 
-    private func buildProfile() -> UserProfile {
-        UserProfile(
+    func assign(block: WorkoutBlock, to day: Int) {
+        dayAssignments[day] = block
+    }
+
+    func removeAssignment(for day: Int) {
+        dayAssignments.removeValue(forKey: day)
+    }
+
+    func regenerateBlocks() {
+        let profile = UserProfile(
             name: "Athlete",
             trainingAge: selectedTrainingAge,
             goal: selectedGoal,
             availableDays: Array(1...availableDays),
+            weakPoints: weakPoints,
+            unit: unit,
+            minPlateIncrement: minPlateIncrement,
+            onboardingCompleted: false
+        )
+
+        weeklyBlocks = programGenerator.generateWeeklyBlocks(for: profile)
+        dayAssignments = [:]
+    }
+
+    private func buildProfile() -> UserProfile {
+        let assignedDays = dayAssignments.keys.sorted()
+        let scheduleDays = assignedDays.isEmpty ? Array(1...availableDays) : assignedDays
+
+        UserProfile(
+            name: "Athlete",
+            trainingAge: selectedTrainingAge,
+            goal: selectedGoal,
+            availableDays: scheduleDays,
             weakPoints: weakPoints,
             unit: unit,
             minPlateIncrement: minPlateIncrement,

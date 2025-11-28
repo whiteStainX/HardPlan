@@ -90,6 +90,13 @@ struct ScheduledSession: Identifiable, Codable, Equatable, Hashable {
     }
 }
 
+struct WorkoutBlock: Identifiable, Codable, Equatable, Hashable {
+    var id: UUID = UUID()
+    var name: String
+    var primaryMuscles: [MuscleGroup]
+    var accessoryMuscles: [MuscleGroup]
+}
+
 struct ActiveProgram: Identifiable, Codable, Equatable {
     var id: String = UUID().uuidString
     var startDate: String

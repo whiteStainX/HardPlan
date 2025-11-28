@@ -53,10 +53,14 @@ struct OnboardingView: View {
                 case .schedule:
                     ScheduleView(
                         trainingAge: viewModel.selectedTrainingAge,
+                        goal: viewModel.selectedGoal,
+                        weakPoints: viewModel.weakPoints,
                         availableDays: Binding(
                             get: { viewModel.availableDays },
                             set: { viewModel.updateAvailableDays($0) }
                         ),
+                        assignments: $viewModel.dayAssignments,
+                        blocks: viewModel.weeklyBlocks,
                         warningText: viewModel.adherenceWarning(),
                         onNext: viewModel.advanceFromSchedule,
                         onBack: { viewModel.step = .experience }
@@ -86,8 +90,8 @@ struct OnboardingView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
-            viewModel.configure { profile in
-                appState.onboardUser(profile: profile)
+            viewModel.configure { profile, assignments in
+                appState.onboardUser(profile: profile, assignedBlocks: assignments)
             }
         }
     }

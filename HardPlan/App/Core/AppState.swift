@@ -74,7 +74,7 @@ final class AppState: ObservableObject {
         refreshPostBlockAssessmentStatus()
     }
 
-    func onboardUser(profile: UserProfile) {
+    func onboardUser(profile: UserProfile, assignedBlocks: [Int: WorkoutBlock]? = nil) {
         var storedProfile = profile
         storedProfile.onboardingCompleted = true
 
@@ -82,7 +82,7 @@ final class AppState: ObservableObject {
         userProfile = storedProfile
 
         if activeProgram == nil {
-            activeProgram = programGenerator.generateProgram(for: storedProfile)
+            activeProgram = programGenerator.generateProgram(for: storedProfile, assignedBlocks: assignedBlocks)
             persistActiveProgram()
         }
 
