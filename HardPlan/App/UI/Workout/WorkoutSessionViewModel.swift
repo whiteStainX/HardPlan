@@ -38,8 +38,8 @@ struct EditableSet: Identifiable, Equatable {
 
 struct ExerciseEntry: Identifiable, Equatable {
     var id: UUID { scheduled.id }
-    let scheduled: ScheduledExercise
-    let exerciseName: String
+    var scheduled: ScheduledExercise
+    var exerciseName: String
     var sets: [EditableSet]
 }
 
@@ -48,25 +48,37 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published var session: ScheduledSession
     @Published var exerciseEntries: [ExerciseEntry]
     @Published var isShortOnTime: Bool = false
+    @Published var toastMessage: String?
 
-    private let originalSession: ScheduledSession
+    private var originalSession: ScheduledSession
     private let exerciseRepository: ExerciseRepositoryProtocol
     private let adherenceService: AdherenceServiceProtocol
+    private let substitutionService: SubstitutionServiceProtocol
     private let exerciseLookup: [String: Exercise]
+    private let allExercises: [Exercise]
+    private var userProfile: UserProfile?
 
     init(
         session: ScheduledSession,
         exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve(),
-        adherenceService: AdherenceServiceProtocol = DependencyContainer.shared.resolve()
+        adherenceService: AdherenceServiceProtocol = DependencyContainer.shared.resolve(),
+        substitutionService: SubstitutionServiceProtocol = DependencyContainer.shared.resolve()
     ) {
         self.session = session
         self.originalSession = session
         self.exerciseRepository = exerciseRepository
         self.adherenceService = adherenceService
-        self.exerciseLookup = Dictionary(uniqueKeysWithValues: exerciseRepository.getAllExercises().map { ($0.id, $0) })
+        let exercises = exerciseRepository.getAllExercises()
+        self.exerciseLookup = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
+        self.allExercises = exercises
+        self.substitutionService = substitutionService
         self.exerciseEntries = []
 
         rebuildEntries(from: session, preserving: [])
+    }
+
+    func updateUserProfile(_ profile: UserProfile?) {
+        userProfile = profile
     }
 
     func toggleShortOnTime() {
@@ -100,6 +112,11 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         exerciseEntries[exerciseIndex].sets[setIndex].isComplete.toggle()
+
+        if exerciseEntries[exerciseIndex].sets[setIndex].isComplete {
+            handleAutoRegulation(for: exerciseIndex, completedSetIndex: setIndex)
+        }
+
         return exerciseEntries[exerciseIndex].sets[setIndex].isComplete
     }
 
@@ -108,6 +125,31 @@ final class WorkoutSessionViewModel: ObservableObject {
         for setIndex in exerciseEntries[index].sets.indices {
             exerciseEntries[index].sets[setIndex].isComplete = false
         }
+    }
+
+    func substitutionOptions(for entry: ExerciseEntry) -> [SubstitutionOption]? {
+        guard let userProfile else { return nil }
+        guard let original = exerciseLookup[entry.scheduled.exerciseId] else { return [] }
+
+        return substitutionService.getOptions(for: original, allExercises: allExercises, user: userProfile)
+    }
+
+    func applySubstitution(option: SubstitutionOption, to exerciseId: UUID) {
+        guard let replacement = exerciseLookup[option.id],
+              let exerciseIndex = exerciseEntries.firstIndex(where: { $0.id == exerciseId }),
+              let sessionIndex = session.exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            return
+        }
+
+        exerciseEntries[exerciseIndex].scheduled.exerciseId = replacement.id
+        exerciseEntries[exerciseIndex].exerciseName = replacement.name
+
+        session.exercises[sessionIndex].exerciseId = replacement.id
+        originalSession.exercises[sessionIndex].exerciseId = replacement.id
+    }
+
+    func clearToastMessage() {
+        toastMessage = nil
     }
 
     private func rebuildEntries(from session: ScheduledSession, preserving previous: [ExerciseEntry]) {
@@ -151,6 +193,34 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         return sets
+    }
+
+    private func handleAutoRegulation(for exerciseIndex: Int, completedSetIndex: Int) {
+        guard exerciseEntries.indices.contains(exerciseIndex) else { return }
+        let entry = exerciseEntries[exerciseIndex]
+
+        guard let nextIndex = entry.sets.indices.first(where: { $0 > completedSetIndex && !entry.sets[$0].isComplete }) else {
+            return
+        }
+
+        let completedSet = entry.sets[completedSetIndex]
+        let targetRPE = entry.scheduled.targetRPE
+        let difference = completedSet.rpe - targetRPE
+
+        guard difference > 1.0 else { return }
+
+        guard let currentLoad = Double(completedSet.load) else { return }
+        let reductionFactor = 0.95
+        let minIncrement = userProfile?.minPlateIncrement ?? 2.5
+        let adjustedLoad = roundToIncrement(currentLoad * reductionFactor, increment: minIncrement)
+
+        exerciseEntries[exerciseIndex].sets[nextIndex].load = String(format: "%.0f", adjustedLoad)
+        toastMessage = "Load reduced for next set"
+    }
+
+    private func roundToIncrement(_ value: Double, increment: Double) -> Double {
+        guard increment > 0 else { return value }
+        return (value / increment).rounded() * increment
     }
 }
 

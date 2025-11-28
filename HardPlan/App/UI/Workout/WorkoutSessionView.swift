@@ -1,10 +1,15 @@
 import SwiftUI
 
 struct WorkoutSessionView: View {
+    @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel: WorkoutSessionViewModel
 
     @State private var restTimeRemaining: Int?
     @State private var restTimer: Timer?
+    @State private var swapTarget: ExerciseEntry?
+    @State private var substitutionOptions: [SubstitutionOption] = []
+    @State private var substitutionError: String?
+    @State private var toastMessage: String?
 
     init(session: ScheduledSession) {
         _viewModel = StateObject(wrappedValue: WorkoutSessionViewModel(session: session))
@@ -43,6 +48,54 @@ struct WorkoutSessionView: View {
         .onDisappear {
             stopRestTimer()
         }
+        .sheet(item: $swapTarget) { entry in
+            SubstitutionSheet(
+                exerciseName: entry.exerciseName,
+                options: substitutionOptions,
+                onSelect: { option in
+                    viewModel.applySubstitution(option: option, to: entry.id)
+                },
+                dismiss: {
+                    swapTarget = nil
+                }
+            )
+        }
+        .alert("Can't Swap Exercise", isPresented: Binding(
+            get: { substitutionError != nil },
+            set: { newValue in
+                if !newValue { substitutionError = nil }
+            }
+        )) {
+            Button("OK", role: .cancel) {
+                substitutionError = nil
+            }
+        } message: {
+            Text(substitutionError ?? "")
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                ToastBanner(message: toastMessage)
+                    .padding()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut, value: toastMessage)
+        .onReceive(viewModel.$toastMessage.compactMap { $0 }) { message in
+            toastMessage = message
+            viewModel.clearToastMessage()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                if toastMessage == message {
+                    toastMessage = nil
+                }
+            }
+        }
+        .onAppear {
+            viewModel.updateUserProfile(appState.userProfile)
+        }
+        .onChange(of: appState.userProfile) { newValue in
+            viewModel.updateUserProfile(newValue)
+        }
     }
 
     private var sessionHeader: some View {
@@ -58,7 +111,7 @@ struct WorkoutSessionView: View {
 
     private func exerciseCard(for entry: Binding<ExerciseEntry>) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.wrappedValue.exerciseName)
                         .font(.headline)
@@ -67,9 +120,18 @@ struct WorkoutSessionView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                ProgressView(value: entry.wrappedValue.completionProgress)
-                    .progressViewStyle(.linear)
-                    .frame(width: 120)
+                VStack(alignment: .trailing, spacing: 8) {
+                    Button {
+                        presentSubstitutionSheet(for: entry.wrappedValue)
+                    } label: {
+                        Label("Swap", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+
+                    ProgressView(value: entry.wrappedValue.completionProgress)
+                        .progressViewStyle(.linear)
+                        .frame(width: 140)
+                }
             }
 
             ForEach(entry.sets) { $set in
@@ -116,6 +178,16 @@ struct WorkoutSessionView: View {
         restTimer?.invalidate()
         restTimer = nil
         restTimeRemaining = nil
+    }
+
+    private func presentSubstitutionSheet(for entry: ExerciseEntry) {
+        guard let options = viewModel.substitutionOptions(for: entry) else {
+            substitutionError = "Add your profile to enable smart substitutions."
+            return
+        }
+
+        substitutionOptions = options
+        swapTarget = entry
     }
 }
 
@@ -216,5 +288,80 @@ private struct RestTimerView: View {
     return NavigationStack {
         WorkoutSessionView(session: session)
             .environmentObject(AppState())
+    }
+}
+
+private struct SubstitutionSheet: View {
+    let exerciseName: String
+    let options: [SubstitutionOption]
+    var onSelect: (SubstitutionOption) -> Void
+    var dismiss: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if options.isEmpty {
+                    Section {
+                        Text("No compatible substitutions available right now.")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Section("Recommended Swaps") {
+                        ForEach(options) { option in
+                            Button {
+                                onSelect(option)
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text(option.exerciseName)
+                                            .font(.headline)
+                                        Spacer()
+                                        Text(String(format: "%.0f%% match", option.specificityScore * 100))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    if let warning = option.warning {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: warning.level == .warning ? "exclamationmark.triangle.fill" : "info.circle")
+                                                .foregroundStyle(warning.level == .warning ? .orange : .blue)
+                                                .font(.caption)
+                                            Text(warning.message)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Swap \(exerciseName)")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done", action: dismiss)
+                }
+            }
+        }
+    }
+}
+
+private struct ToastBanner: View {
+    let message: String
+
+    var body: some View {
+        HStack {
+            Image(systemName: "bolt.fill")
+            Text(message)
+                .font(.subheadline.weight(.semibold))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(radius: 4, y: 2)
     }
 }
