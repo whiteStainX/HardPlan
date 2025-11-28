@@ -4,6 +4,7 @@ import Combine
 struct ProgramView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = ProgramViewModel()
+    @State private var selectedSession: ProgramSessionDisplay?
 
     var body: some View {
         NavigationStack {
@@ -12,13 +13,11 @@ struct ProgramView: View {
                     if viewModel.sessions.isEmpty {
                         placeholderCard
                     } else {
-                        ForEach(viewModel.sessions) { session in
-                            NavigationLink {
-                                ProgramSessionDetailView(session: session)
-                            } label: {
-                                sessionCard(for: session)
-                            }
-                            .buttonStyle(.plain)
+                        WeeklyCalendarView(
+                            sessions: viewModel.sessions,
+                            startWeekday: viewModel.startWeekday
+                        ) { session in
+                            selectedSession = session
                         }
                     }
                 }
@@ -26,6 +25,9 @@ struct ProgramView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Program")
+            .navigationDestination(item: $selectedSession) { session in
+                ProgramSessionDetailView(session: session)
+            }
         }
         .onAppear {
             viewModel.refresh(program: appState.activeProgram)
@@ -50,41 +52,6 @@ struct ProgramView: View {
                 .multilineTextAlignment(.center)
                 .padding()
             )
-    }
-
-    private func sessionCard(for session: ProgramSessionDisplay) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(session.dayLabel)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Text(session.sessionName)
-                .font(.headline)
-
-            if !session.exercises.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(session.exercises.prefix(2)) { exercise in
-                        Text("• \(exercise.name)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if session.exercises.count > 2 {
-                        Text("+ \(session.exercises.count - 2) more")
-                            .font(.footnote)
-                            .foregroundStyle(Color(.tertiaryLabel))
-                    }
-                }
-            } else {
-                Text("No exercises scheduled")
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.tertiaryLabel))
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -127,6 +94,7 @@ struct ProgramSessionDetailView: View {
 
 struct ProgramSessionDisplay: Identifiable, Hashable {
     let id: UUID
+    let dayOfWeek: Int
     let dayLabel: String
     let sessionName: String
     let exercises: [ProgramExerciseDisplay]
@@ -180,11 +148,16 @@ final class ProgramViewModel: ObservableObject {
 
                 return ProgramSessionDisplay(
                     id: session.id,
+                    dayOfWeek: session.dayOfWeek,
                     dayLabel: dayLabel(for: session.dayOfWeek),
                     sessionName: session.name,
                     exercises: exercises
                 )
             }
+    }
+
+    var startWeekday: Int {
+        calendar.firstWeekday
     }
 
     private func dayLabel(for weekday: Int) -> String {
