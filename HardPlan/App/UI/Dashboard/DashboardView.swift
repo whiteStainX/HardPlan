@@ -4,6 +4,7 @@ import Charts
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DashboardViewModel()
+    @State private var activeSession: ScheduledSession?
 
     var body: some View {
         NavigationStack {
@@ -17,6 +18,10 @@ struct DashboardView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Dashboard")
+            .navigationDestination(item: $activeSession) { session in
+                WorkoutSessionView(session: session)
+                    .environmentObject(appState)
+            }
         }
         .onAppear {
             viewModel.refresh(from: appState)
@@ -66,7 +71,9 @@ struct DashboardView: View {
             NextSessionCard(
                 label: viewModel.nextSessionLabel,
                 session: viewModel.nextSession,
-                startAction: {}
+                startAction: {
+                    activeSession = viewModel.nextSession
+                }
             )
         }
     }

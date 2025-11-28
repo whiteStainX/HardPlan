@@ -10,6 +10,7 @@ protocol AdherenceServiceProtocol {
     func checkScheduleStatus(lastLogDate: Date, currentDate: Date) -> AdherenceStatus
     func shiftSchedule(program: ActiveProgram) -> ActiveProgram
     func combineSessions(missed: ScheduledSession, current: ScheduledSession) -> ScheduledSession
+    func trimSession(for session: ScheduledSession) -> ScheduledSession
 }
 
 struct AdherenceService: AdherenceServiceProtocol {
@@ -87,6 +88,40 @@ struct AdherenceService: AdherenceServiceProtocol {
             dayOfWeek: current.dayOfWeek,
             name: "Combined: \(missed.name) + \(current.name)",
             exercises: combinedExercises
+        )
+    }
+
+    func trimSession(for session: ScheduledSession) -> ScheduledSession {
+        let exerciseLookup = Dictionary(uniqueKeysWithValues: exerciseRepository.getAllExercises().map { ($0.id, $0) })
+
+        var trimmed: [ScheduledExercise] = []
+        var accessoryCount = 0
+
+        for exercise in session.exercises.sorted(by: { $0.order < $1.order }) {
+            guard let details = exerciseLookup[exercise.exerciseId] else { continue }
+
+            if details.isCompetitionLift || details.type == .compound {
+                trimmed.append(exercise)
+                continue
+            }
+
+            guard accessoryCount < 2 else { continue }
+
+            var reducedAccessory = exercise
+            reducedAccessory.targetSets = max(1, exercise.targetSets - 1)
+            accessoryCount += 1
+            trimmed.append(reducedAccessory)
+        }
+
+        for index in trimmed.indices {
+            trimmed[index].order = index + 1
+        }
+
+        return ScheduledSession(
+            id: session.id,
+            dayOfWeek: session.dayOfWeek,
+            name: "\(session.name) (APS)",
+            exercises: trimmed
         )
     }
 
