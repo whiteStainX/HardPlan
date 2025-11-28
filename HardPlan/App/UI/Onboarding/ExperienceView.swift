@@ -1,10 +1,9 @@
 import SwiftUI
 
 struct ExperienceView: View {
-    let selectedTrainingAge: TrainingAge
-    let onSelect: (TrainingAge) -> Void
-    let onNext: () -> Void
-    let onBack: () -> Void
+    @Binding var selectedTrainingAge: TrainingAge
+    var onNext: () -> Void = {}
+    var onBack: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 20) {
@@ -51,7 +50,7 @@ struct ExperienceView: View {
     @ViewBuilder
     private func trainingAgeCard(title: String, subtitle: String, trainingAge: TrainingAge) -> some View {
         Button {
-            onSelect(trainingAge)
+            selectedTrainingAge = trainingAge
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -83,6 +82,6 @@ struct ExperienceView: View {
 }
 
 #Preview {
-    ExperienceView(selectedTrainingAge: .novice, onSelect: { _ in }, onNext: {}, onBack: {})
+    ExperienceView(selectedTrainingAge: .constant(.novice))
         .padding()
 }

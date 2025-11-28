@@ -2,11 +2,10 @@ import SwiftUI
 
 struct ScheduleView: View {
     let trainingAge: TrainingAge
-    let availableDays: Int
+    @Binding var availableDays: Int
     let warningText: String?
-    let onDaysChanged: (Int) -> Void
-    let onNext: () -> Void
-    let onBack: () -> Void
+    var onNext: () -> Void = {}
+    var onBack: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 20) {
@@ -30,7 +29,7 @@ struct ScheduleView: View {
                 Slider(
                     value: Binding(
                         get: { Double(availableDays) },
-                        set: { onDaysChanged(Int($0.rounded())) }
+                        set: { availableDays = clampDays(Int($0.rounded())) }
                     ),
                     in: 2...6,
                     step: 1
@@ -63,9 +62,13 @@ struct ScheduleView: View {
             }
         }
     }
+
+    private func clampDays(_ days: Int) -> Int {
+        max(2, min(6, days))
+    }
 }
 
 #Preview {
-    ScheduleView(trainingAge: .novice, availableDays: 4, warningText: "Sample warning", onDaysChanged: { _ in }, onNext: {}, onBack: {})
+    ScheduleView(trainingAge: .novice, availableDays: .constant(4), warningText: "Sample warning")
         .padding()
 }
