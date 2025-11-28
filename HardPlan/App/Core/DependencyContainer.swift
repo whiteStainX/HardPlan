@@ -71,7 +71,7 @@ final class DependencyContainer {
 
         registerSingleton { ExerciseRepository(persistenceController: self.resolve()) as ExerciseRepositoryProtocol }
         registerSingleton { UserRepository(persistenceController: self.resolve()) as UserRepositoryProtocol }
-        registerSingleton { WorkoutRepository() as WorkoutRepositoryProtocol }
+        registerSingleton { WorkoutRepository(persistenceController: self.resolve()) as WorkoutRepositoryProtocol }
 
         registerSingleton { VolumeService(exerciseRepository: self.resolve()) as VolumeServiceProtocol }
         registerSingleton { ProgressionService() as ProgressionServiceProtocol }

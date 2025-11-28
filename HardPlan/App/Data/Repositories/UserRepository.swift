@@ -9,6 +9,7 @@ import Foundation
 protocol UserRepositoryProtocol {
     func saveProfile(_ profile: UserProfile)
     func getProfile() -> UserProfile?
+    func deleteProfile()
 }
 
 struct UserRepository: UserRepositoryProtocol {
@@ -25,5 +26,9 @@ struct UserRepository: UserRepositoryProtocol {
 
     func getProfile() -> UserProfile? {
         persistenceController.load(from: filename)
+    }
+
+    func deleteProfile() {
+        persistenceController.delete(filename: filename)
     }
 }
