@@ -9,7 +9,14 @@
 import Foundation
 
 protocol ProgramGeneratorProtocol {
-    func generateProgram(for user: UserProfile) -> ActiveProgram
+    func generateProgram(for user: UserProfile, assignedBlocks: [Int: WorkoutBlock]?) -> ActiveProgram
+    func generateWeeklyBlocks(for user: UserProfile) -> [WorkoutBlock]
+}
+
+extension ProgramGeneratorProtocol {
+    func generateProgram(for user: UserProfile) -> ActiveProgram {
+        generateProgram(for: user, assignedBlocks: nil)
+    }
 }
 
 struct ProgramGenerator: ProgramGeneratorProtocol {
@@ -26,14 +33,31 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
         self.isoFormatter = ISO8601DateFormatter()
     }
 
-    func generateProgram(for user: UserProfile) -> ActiveProgram {
-        let sessionPlans = buildSessionPlans(for: user)
+    func generateProgram(for user: UserProfile, assignedBlocks: [Int: WorkoutBlock]? = nil) -> ActiveProgram {
+        var programUser = user
+
+        let sessionPlans: [SessionPlan]
+        if let assignedBlocks, !assignedBlocks.isEmpty {
+            let sortedDays = assignedBlocks.keys.sorted()
+            programUser.availableDays = sortedDays
+            sessionPlans = sortedDays.compactMap { day in
+                guard let block = assignedBlocks[day] else { return nil }
+                return SessionPlan(
+                    name: block.name,
+                    primaryMuscles: block.primaryMuscles,
+                    accessoryMuscles: block.accessoryMuscles
+                )
+            }
+        } else {
+            sessionPlans = buildSessionPlans(for: user)
+        }
+
         let baseVolume = volumeTarget(for: user.trainingAge)
-        let muscleHitCounts = countMuscleHits(in: sessionPlans, weakPoints: user.weakPoints)
+        let muscleHitCounts = countMuscleHits(in: sessionPlans, weakPoints: programUser.weakPoints)
 
         let weeklySchedule = buildSchedule(
             from: sessionPlans,
-            user: user,
+            user: programUser,
             baseVolume: baseVolume,
             muscleHitCounts: muscleHitCounts
         )
@@ -47,6 +71,16 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
             weeklySchedule: weeklySchedule,
             progressionData: progression
         )
+    }
+
+    func generateWeeklyBlocks(for user: UserProfile) -> [WorkoutBlock] {
+        buildSessionPlans(for: user).map { plan in
+            WorkoutBlock(
+                name: plan.name,
+                primaryMuscles: plan.primaryMuscles,
+                accessoryMuscles: plan.accessoryMuscles
+            )
+        }
     }
 
     private func volumeTarget(for trainingAge: TrainingAge) -> Int {

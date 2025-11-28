@@ -1,10 +1,14 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct WeeklyCalendarView: View {
     let sessions: [ProgramSessionDisplay]
     var startWeekday: Int = 1
     var calendar: Calendar = .current
     var onSessionTap: (ProgramSessionDisplay) -> Void = { _ in }
+    var droppable: Bool = false
+    var onDropItem: (String, Int) -> Void = { _, _ in }
+    var onClearDay: (Int) -> Void = { _ in }
 
     private var orderedWeekdays: [Int] {
         let normalizedStart = (1...7).contains(startWeekday) ? startWeekday : 1
@@ -32,24 +36,36 @@ struct WeeklyCalendarView: View {
             if let daySessions = sessionsByDay[weekday], !daySessions.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(daySessions) { session in
-                        Button {
-                            onSessionTap(session)
-                        } label: {
-                            HStack {
-                                Text(session.sessionName)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                        HStack(alignment: .center, spacing: 8) {
+                            Button {
+                                onSessionTap(session)
+                            } label: {
+                                HStack {
+                                    Text(session.sessionName)
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .buttonStyle(.plain)
+
+                            if droppable {
+                                Button {
+                                    onClearDay(weekday)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(Color(.tertiaryLabel))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             } else {
@@ -62,6 +78,23 @@ struct WeeklyCalendarView: View {
         .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .onDrop(of: [.text], isTargeted: nil) { providers in
+            guard droppable else { return false }
+            guard let provider = providers.first else { return false }
+
+            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { data, _ in
+                guard
+                    let data = data as? Data,
+                    let idString = String(data: data, encoding: .utf8)
+                else { return }
+
+                DispatchQueue.main.async {
+                    onDropItem(idString, weekday)
+                }
+            }
+
+            return true
+        }
     }
 
     private func weekdayLabel(for weekday: Int) -> String {

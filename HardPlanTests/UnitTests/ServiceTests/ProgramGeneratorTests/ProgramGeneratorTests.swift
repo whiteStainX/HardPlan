@@ -87,6 +87,51 @@ final class ProgramGeneratorTests: XCTestCase {
         // Assert that the weak point (bicep) exercise appears before the other accessory
         XCTAssertLessThan(bicepIndex, lateralRaiseIndex)
     }
+
+    func testGenerateWeeklyBlocksReturnsCorrectBlocks() {
+        // GIVEN
+        let user = UserProfile(name: "Test", trainingAge: .intermediate, goal: .strength, availableDays: [1, 2, 3, 4])
+        let generator = ProgramGenerator(exerciseRepository: createMockRepository())
+
+        // WHEN
+        let blocks = generator.generateWeeklyBlocks(for: user)
+
+        // THEN
+        XCTAssertEqual(blocks.count, 4)
+        XCTAssertTrue(blocks.contains(where: { $0.name == "Upper A" }))
+        XCTAssertTrue(blocks.contains(where: { $0.name == "Lower A" }))
+        XCTAssertTrue(blocks.contains(where: { $0.name == "Upper B" }))
+        XCTAssertTrue(blocks.contains(where: { $0.name == "Lower B" }))
+    }
+
+    func testGenerateProgramWithAssignedBlocksRespectsUserOrder() {
+        // GIVEN
+        let user = UserProfile(name: "Test", trainingAge: .intermediate, goal: .strength, availableDays: [])
+        let generator = ProgramGenerator(exerciseRepository: createMockRepository())
+        let blocks = generator.generateWeeklyBlocks(for: user)
+        
+        // Custom user assignment: Lower, Upper, Rest, Lower, Upper
+        let assignedBlocks: [Int: WorkoutBlock] = [
+            1: blocks.first(where: { $0.name == "Lower A" })!,
+            2: blocks.first(where: { $0.name == "Upper A" })!,
+            4: blocks.first(where: { $0.name == "Lower B" })!,
+            5: blocks.first(where: { $0.name == "Upper B" })!
+        ]
+
+        // WHEN
+        let program = generator.generateProgram(for: user, assignedBlocks: assignedBlocks)
+
+        // THEN
+        XCTAssertEqual(program.weeklySchedule.count, 4)
+        XCTAssertEqual(program.weeklySchedule[0].dayOfWeek, 1)
+        XCTAssertEqual(program.weeklySchedule[0].name, "Lower A")
+        XCTAssertEqual(program.weeklySchedule[1].dayOfWeek, 2)
+        XCTAssertEqual(program.weeklySchedule[1].name, "Upper A")
+        XCTAssertEqual(program.weeklySchedule[2].dayOfWeek, 4)
+        XCTAssertEqual(program.weeklySchedule[2].name, "Lower B")
+        XCTAssertEqual(program.weeklySchedule[3].dayOfWeek, 5)
+        XCTAssertEqual(program.weeklySchedule[3].name, "Upper B")
+    }
 }
 
 private final class MockProgramGenExerciseRepository: ExerciseRepositoryProtocol {

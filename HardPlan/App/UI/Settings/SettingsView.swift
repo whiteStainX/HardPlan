@@ -91,11 +91,7 @@ struct SettingsView: View {
             }
 
             NavigationLink("Weekly Schedule") {
-                ScheduleView(
-                    trainingAge: profile.wrappedValue.trainingAge,
-                    availableDays: availableDaysBinding(for: profile),
-                    warningText: nil
-                )
+                ScheduleSettingsView(profile: profile)
             }
         }
     }
@@ -219,6 +215,60 @@ struct SettingsView: View {
                 profile.wrappedValue.availableDays = Array(1...clamped)
             }
         )
+    }
+}
+
+private struct ScheduleSettingsView: View {
+    @Binding var profile: UserProfile
+    @State private var assignments: [Int: WorkoutBlock] = [:]
+    @State private var blocks: [WorkoutBlock] = []
+
+    private let programGenerator: ProgramGeneratorProtocol
+
+    init(profile: Binding<UserProfile>, programGenerator: ProgramGeneratorProtocol = DependencyContainer.shared.resolve()) {
+        self._profile = profile
+        self.programGenerator = programGenerator
+    }
+
+    var body: some View {
+        ScheduleView(
+            trainingAge: profile.trainingAge,
+            goal: profile.goal,
+            weakPoints: profile.weakPoints,
+            availableDays: Binding(
+                get: { max(2, min(6, profile.availableDays.count)) },
+                set: { newValue in
+                    let clamped = max(2, min(6, newValue))
+                    profile.availableDays = Array(1...clamped)
+                    refreshBlocks()
+                }
+            ),
+            assignments: $assignments,
+            blocks: blocks,
+            warningText: nil
+        )
+        .onAppear(perform: refreshBlocks)
+        .onChange(of: profile.trainingAge) { _ in refreshBlocks() }
+        .onChange(of: profile.goal) { _ in refreshBlocks() }
+        .onChange(of: profile.weakPoints) { _ in refreshBlocks() }
+    }
+
+    private func refreshBlocks() {
+        let user = UserProfile(
+            name: profile.name,
+            trainingAge: profile.trainingAge,
+            goal: profile.goal,
+            availableDays: profile.availableDays,
+            weakPoints: profile.weakPoints,
+            excludedExercises: profile.excludedExercises,
+            unit: profile.unit,
+            minPlateIncrement: profile.minPlateIncrement,
+            onboardingCompleted: profile.onboardingCompleted,
+            progressionOverrides: profile.progressionOverrides,
+            fundamentalsStatus: profile.fundamentalsStatus
+        )
+
+        blocks = programGenerator.generateWeeklyBlocks(for: user)
     }
 }
 
