@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct WorkoutSessionView: View {
     @EnvironmentObject private var appState: AppState
