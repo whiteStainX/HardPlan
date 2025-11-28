@@ -17,17 +17,20 @@ final class AppState: ObservableObject {
     private let userRepository: UserRepositoryProtocol
     private let workoutRepository: WorkoutRepositoryProtocol
     private let persistenceController: JSONPersistenceController
+    private let programGenerator: ProgramGeneratorProtocol
 
     private let activeProgramFilename = "active_program.json"
 
     init(
         userRepository: UserRepositoryProtocol = DependencyContainer.shared.resolve(),
         workoutRepository: WorkoutRepositoryProtocol = DependencyContainer.shared.resolve(),
-        persistenceController: JSONPersistenceController = DependencyContainer.shared.resolve()
+        persistenceController: JSONPersistenceController = DependencyContainer.shared.resolve(),
+        programGenerator: ProgramGeneratorProtocol = DependencyContainer.shared.resolve()
     ) {
         self.userRepository = userRepository
         self.workoutRepository = workoutRepository
         self.persistenceController = persistenceController
+        self.programGenerator = programGenerator
         self.workoutLogs = []
     }
 
@@ -45,7 +48,7 @@ final class AppState: ObservableObject {
         userProfile = storedProfile
 
         if activeProgram == nil {
-            activeProgram = createPlaceholderProgram()
+            activeProgram = programGenerator.generateProgram(for: storedProfile)
             persistActiveProgram()
         }
     }
@@ -72,13 +75,5 @@ final class AppState: ObservableObject {
 
     private func loadActiveProgram() -> ActiveProgram? {
         persistenceController.load(from: activeProgramFilename)
-    }
-
-    private func createPlaceholderProgram() -> ActiveProgram {
-        let formatter = ISO8601DateFormatter()
-        return ActiveProgram(
-            startDate: formatter.string(from: Date()),
-            currentBlockPhase: .introductory
-        )
     }
 }
