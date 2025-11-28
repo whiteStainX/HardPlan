@@ -31,7 +31,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                profileSection
+                if let profileBinding {
+                    trainingSection(profileBinding)
+                    preferencesSection(profileBinding)
+                } else {
+                    onboardingPlaceholder
+                }
+
                 exerciseSection
                 dataManagementSection
             }
@@ -71,19 +77,47 @@ struct SettingsView: View {
         }
     }
 
-    private var profileSection: some View {
-        Section("User Profile") {
-            if let profile = appState.userProfile {
-                LabeledContent("Name", value: profile.name)
-                LabeledContent("Goal", value: profile.goal.rawValue.capitalized)
-                LabeledContent("Training Age", value: profile.trainingAge.rawValue.capitalized)
-                LabeledContent("Preferred Unit", value: profile.unit.rawValue.uppercased())
-                LabeledContent("Min Plate Increment", value: String(format: "%.1f", profile.minPlateIncrement))
-                LabeledContent("Training Days", value: availableDaysLabel(for: profile.availableDays))
-            } else {
-                Text("Onboarding not completed yet.")
-                    .foregroundStyle(.secondary)
+    private func trainingSection(_ profile: Binding<UserProfile>) -> some View {
+        Section("Training") {
+            NavigationLink("Training Focus") {
+                TrainingFocusView(
+                    goal: binding(\.goal, in: profile),
+                    weakPoints: binding(\.weakPoints, in: profile)
+                )
             }
+
+            NavigationLink("Experience Level") {
+                ExperienceView(selectedTrainingAge: binding(\.trainingAge, in: profile))
+            }
+
+            NavigationLink("Weekly Schedule") {
+                ScheduleView(
+                    trainingAge: profile.wrappedValue.trainingAge,
+                    availableDays: availableDaysBinding(for: profile),
+                    warningText: nil
+                )
+            }
+        }
+    }
+
+    private func preferencesSection(_ profile: Binding<UserProfile>) -> some View {
+        Section("Preferences") {
+            NavigationLink("Units & Loading") {
+                UnitSettingsView(
+                    unit: binding(\.unit, in: profile),
+                    minPlateIncrement: binding(\.minPlateIncrement, in: profile)
+                )
+            }
+
+            LabeledContent("Training Days", value: availableDaysLabel(for: profile.wrappedValue.availableDays))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var onboardingPlaceholder: some View {
+        Section("User Profile") {
+            Text("Onboarding not completed yet.")
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -156,6 +190,35 @@ struct SettingsView: View {
         try csvData.write(to: csvURL, options: .atomic)
 
         return [jsonURL, csvURL]
+    }
+
+    private var profileBinding: Binding<UserProfile>? {
+        guard appState.userProfile != nil else { return nil }
+
+        return Binding(
+            get: { appState.userProfile ?? UserProfile(name: "", trainingAge: .novice, goal: .strength) },
+            set: { appState.userProfile = $0 }
+        )
+    }
+
+    private func binding<Value>(
+        _ keyPath: WritableKeyPath<UserProfile, Value>,
+        in profile: Binding<UserProfile>
+    ) -> Binding<Value> {
+        Binding(
+            get: { profile.wrappedValue[keyPath: keyPath] },
+            set: { profile.wrappedValue[keyPath: keyPath] = $0 }
+        )
+    }
+
+    private func availableDaysBinding(for profile: Binding<UserProfile>) -> Binding<Int> {
+        Binding(
+            get: { max(2, min(6, profile.wrappedValue.availableDays.count)) },
+            set: { newValue in
+                let clamped = max(2, min(6, newValue))
+                profile.wrappedValue.availableDays = Array(1...clamped)
+            }
+        )
     }
 }
 
