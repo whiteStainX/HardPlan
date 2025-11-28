@@ -7,17 +7,25 @@
 //  and reset the app state.
 
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var exportMessage: String?
+    @State private var exportErrorMessage: String?
     @State private var isShowingExportAlert = false
+    @State private var isPresentingShareSheet = false
+    @State private var shareItems: [Any] = []
     @State private var isConfirmingReset = false
 
     private let exportService: ExportServiceProtocol
+    private let exerciseRepository: ExerciseRepositoryProtocol
 
-    init(exportService: ExportServiceProtocol = DependencyContainer.shared.resolve()) {
+    init(
+        exportService: ExportServiceProtocol = DependencyContainer.shared.resolve(),
+        exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve()
+    ) {
         self.exportService = exportService
+        self.exerciseRepository = exerciseRepository
     }
 
     var body: some View {
@@ -27,10 +35,13 @@ struct SettingsView: View {
                 dataManagementSection
             }
             .navigationTitle("Settings")
-            .alert("Export Complete", isPresented: $isShowingExportAlert) {
+            .alert("Export", isPresented: $isShowingExportAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(exportMessage ?? "Your data is ready.")
+                Text(exportErrorMessage ?? "Your export is ready to share.")
+            }
+            .sheet(isPresented: $isPresentingShareSheet) {
+                ShareSheet(activityItems: shareItems)
             }
             .confirmationDialog(
                 "This will remove your profile, program, and logs.",
@@ -69,7 +80,7 @@ struct SettingsView: View {
                 Label("Export Data", systemImage: "square.and.arrow.up")
             }
 
-            Text("Export a JSON snapshot of your profile, program, and recent logs.")
+            Text("Export a JSON snapshot of your profile, program, exercises, and workout logs as CSV.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -94,19 +105,60 @@ struct SettingsView: View {
         guard let bundle = exportService.exportBundle(
             profile: appState.userProfile,
             activeProgram: appState.activeProgram,
-            workoutLogs: appState.workoutLogs
+            workoutLogs: appState.workoutLogs,
+            exercises: exerciseRepository.getAllExercises()
         ) else {
-            exportMessage = "Unable to export data right now."
+            exportErrorMessage = "Unable to export data right now."
             isShowingExportAlert = true
             return
         }
 
-        exportMessage = "JSON size: \(bundle.jsonSizeDescription). Workouts CSV rows: \(bundle.csvRowCount)."
-        isShowingExportAlert = true
+        do {
+            shareItems = try prepareShareItems(from: bundle)
+            isPresentingShareSheet = true
+        } catch {
+            exportErrorMessage = "Unable to prepare export files."
+            isShowingExportAlert = true
+        }
+    }
+
+    private func prepareShareItems(from bundle: ExportBundle) throws -> [Any] {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let timestamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
+
+        let exportDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("HardPlanExports", isDirectory: true)
+        try FileManager.default.createDirectory(at: exportDirectory, withIntermediateDirectories: true)
+
+        let jsonURL = exportDirectory.appendingPathComponent("hardplan-export-\(timestamp).json")
+        try bundle.jsonData.write(to: jsonURL, options: .atomic)
+
+        guard let csvData = bundle.csvString.data(using: .utf8) else {
+            throw ExportError.unableToEncodeCSV
+        }
+
+        let csvURL = exportDirectory.appendingPathComponent("hardplan-workouts-\(timestamp).csv")
+        try csvData.write(to: csvURL, options: .atomic)
+
+        return [jsonURL, csvURL]
     }
 }
 
 #Preview {
-    SettingsView(exportService: ExportService())
+    SettingsView(exportService: ExportService(), exerciseRepository: ExerciseRepository())
         .environmentObject(AppState())
+}
+
+private enum ExportError: Error {
+    case unableToEncodeCSV
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    var activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
