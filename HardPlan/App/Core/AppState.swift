@@ -10,7 +10,11 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
-    @Published var userProfile: UserProfile?
+    @Published var userProfile: UserProfile? {
+        didSet {
+            persistUserProfile()
+        }
+    }
     @Published var activeProgram: ActiveProgram?
     @Published var workoutLogs: [WorkoutLog]
     @Published var analyticsSnapshots: [AnalyticsSnapshot]
@@ -107,6 +111,11 @@ final class AppState: ObservableObject {
     func persistActiveProgram() {
         guard let activeProgram else { return }
         persistenceController.save(activeProgram, to: activeProgramFilename)
+    }
+
+    private func persistUserProfile() {
+        guard let userProfile else { return }
+        userRepository.saveProfile(userProfile)
     }
 
     func completeWorkout(_ log: WorkoutLog) {
