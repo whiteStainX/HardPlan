@@ -16,7 +16,7 @@ protocol ProgressionServiceProtocol {
         repRange: ClosedRange<Int>?
     ) -> ProgressionState
 
-    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog]) -> Bool
+    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> Bool
 }
 
 struct ProgressionService: ProgressionServiceProtocol {
@@ -50,11 +50,10 @@ struct ProgressionService: ProgressionServiceProtocol {
         return strategy.calculateNext(current: current, log: log, exercise: exercise)
     }
 
-    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog]) -> Bool {
+    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar = Calendar(identifier: .gregorian)) -> Bool {
         guard let startDate = parseDate(program.startDate) else { return false }
         guard let latestLogDate = logs.compactMap({ parseDate($0.dateCompleted) }).max() else { return false }
 
-        let calendar = Calendar(identifier: .gregorian)
         let weekDelta = calendar.dateComponents([.weekOfYear], from: startDate, to: latestLogDate).weekOfYear ?? 0
         let completedWeeks = max(program.currentWeek, weekDelta + 1)
 

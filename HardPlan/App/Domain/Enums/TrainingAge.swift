@@ -10,4 +10,8 @@ enum TrainingAge: String, Codable {
     case novice = "Novice"
     case intermediate = "Intermediate"
     case advanced = "Advanced"
+
+    var readable: String {
+        self.rawValue
+    }
 }

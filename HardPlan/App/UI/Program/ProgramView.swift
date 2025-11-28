@@ -16,7 +16,7 @@ struct ProgramView: View {
                         WeeklyCalendarView(
                             sessions: viewModel.sessions,
                             workoutLogs: appState.workoutLogs,
-                            startWeekday: viewModel.startWeekday
+                            startWeekday: startWeekday
                         ) { session in
                             selectedSession = session
                         }
@@ -36,6 +36,10 @@ struct ProgramView: View {
         .onChange(of: appState.activeProgram) { newValue in
             viewModel.refresh(program: newValue)
         }
+    }
+
+    private var startWeekday: Int {
+        appState.userProfile?.firstDayOfWeek ?? Calendar.current.firstWeekday
     }
 
     private var placeholderCard: some View {
@@ -155,10 +159,6 @@ final class ProgramViewModel: ObservableObject {
                     exercises: exercises
                 )
             }
-    }
-
-    var startWeekday: Int {
-        calendar.firstWeekday
     }
 
     private func dayLabel(for weekday: Int) -> String {

@@ -10,7 +10,13 @@ protocol AnalyticsServiceProtocol {
     func calculateE1RM(load: Double, reps: Int) -> Double
     func generateHistory(logs: [WorkoutLog], exerciseId: String) -> [E1RMPoint]
     func analyzeTempo(logs: [WorkoutLog]) -> TempoWarning?
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot]
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> [AnalyticsSnapshot]
+}
+
+extension AnalyticsServiceProtocol {
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] {
+        updateSnapshots(program: program, logs: logs, calendar: Calendar(identifier: .gregorian))
+    }
 }
 
 struct AnalyticsService: AnalyticsServiceProtocol {
@@ -86,7 +92,7 @@ struct AnalyticsService: AnalyticsServiceProtocol {
         return nil
     }
 
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] {
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> [AnalyticsSnapshot] {
         let exercisesById = Dictionary(uniqueKeysWithValues: exerciseRepository
             .getAllExercises()
             .map { ($0.id, $0) })
@@ -97,7 +103,7 @@ struct AnalyticsService: AnalyticsServiceProtocol {
 
         return tier1ExerciseIds.map { liftId in
             let e1rmHistory = generateHistory(logs: logs, exerciseId: liftId)
-            let rpeBins = buildRPEDistribution(logs: logs, exerciseId: liftId)
+            let rpeBins = buildRPEDistribution(logs: logs, exerciseId: liftId, calendar: calendar)
 
             return AnalyticsSnapshot(
                 liftId: liftId,
@@ -135,7 +141,7 @@ struct AnalyticsService: AnalyticsServiceProtocol {
         return tier1Ids.sorted()
     }
 
-    private func buildRPEDistribution(logs: [WorkoutLog], exerciseId: String) -> [RPERangeBin] {
+    private func buildRPEDistribution(logs: [WorkoutLog], exerciseId: String, calendar: Calendar) -> [RPERangeBin] {
         let buckets: [(label: String, range: Range<Double>)] = [
             ("6-7", 6.0..<7.0),
             ("7-8", 7.0..<8.0),
@@ -165,7 +171,7 @@ struct AnalyticsService: AnalyticsServiceProtocol {
             }
         }
 
-        let weeksSpanned = computeWeeksSpanned(earliest: earliest, latest: latest)
+        let weeksSpanned = computeWeeksSpanned(earliest: earliest, latest: latest, calendar: calendar)
 
         return zip(buckets, counts).map { bucket, count in
             RPERangeBin(rangeLabel: bucket.label, count: count, periodWeeks: weeksSpanned)
@@ -185,9 +191,8 @@ struct AnalyticsService: AnalyticsServiceProtocol {
         ]
     }
 
-    private func computeWeeksSpanned(earliest: Date?, latest: Date?) -> Int {
+    private func computeWeeksSpanned(earliest: Date?, latest: Date?, calendar: Calendar) -> Int {
         guard let start = earliest, let end = latest else { return 0 }
-        let calendar = Calendar(identifier: .gregorian)
         let days = calendar.dateComponents([.day], from: start, to: end).day ?? 0
         return max(1, Int(ceil(Double(days + 1) / 7.0)))
     }

@@ -17,9 +17,12 @@ struct WeeklyCalendarView: View {
         case missed
     }
 
+    private var normalizedStartWeekday: Int {
+        (1...7).contains(startWeekday) ? startWeekday : 1
+    }
+
     private var orderedWeekdays: [Int] {
-        let normalizedStart = (1...7).contains(startWeekday) ? startWeekday : 1
-        return (0..<7).map { ((normalizedStart + $0 - 1) % 7) + 1 }
+        (0..<7).map { ((normalizedStartWeekday + $0 - 1) % 7) + 1 }
     }
 
     private var sessionsByDay: [Int: [ProgramSessionDisplay]] {
@@ -28,7 +31,7 @@ struct WeeklyCalendarView: View {
 
     private var workingCalendar: Calendar {
         var adjusted = calendar
-        adjusted.firstWeekday = startWeekday
+        adjusted.firstWeekday = normalizedStartWeekday
         return adjusted
     }
 
@@ -83,7 +86,7 @@ struct WeeklyCalendarView: View {
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 7), spacing: 12) {
-            ForEach(orderedWeekdays, id: \._self) { weekday in
+            ForEach(orderedWeekdays, id: \.self) { weekday in
                 dayCell(for: weekday)
             }
         }
@@ -92,7 +95,7 @@ struct WeeklyCalendarView: View {
     private func dayCell(for weekday: Int) -> some View {
         let status = statusByWeekday[weekday]
 
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             Text(weekdayLabel(for: weekday))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

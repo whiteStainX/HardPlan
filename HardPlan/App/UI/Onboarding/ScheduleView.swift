@@ -8,6 +8,7 @@ struct ScheduleView: View {
     @Binding var availableDays: Int
     @Binding var assignments: [Int: WorkoutBlock]
     var blocks: [WorkoutBlock]
+    var startWeekday: Int = Calendar.current.firstWeekday
     let warningText: String?
     var onNext: () -> Void = {}
     var onBack: () -> Void = {}
@@ -36,101 +37,10 @@ struct ScheduleView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Plan your training week")
-                    .font(.title2)
-                    .bold()
-                Text("Drag workouts into the days you plan to train. We’ll build your split based on this schedule.")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(spacing: 12) {
-                Stepper(value: Binding(
-                    get: { Double(availableDays) },
-                    set: { availableDays = clampDays(Int($0)) }
-                ), in: 2...6, step: 1) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Sessions per week")
-                                .bold()
-                            Text("Training age: \(trainingAge.readable)")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text("\(availableDays) sessions")
-                    }
-                }
-                .onChange(of: availableDays) { _ in
-                    assignments = [:]
-                }
-
-                if let warningText {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.yellow)
-                        Text(warningText)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.yellow.opacity(0.1))
-                    )
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Available blocks")
-                    .font(.headline)
-
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-                    ForEach(availableBlocks) { block in
-                        Text(block.name)
-                            .padding(.vertical, 10)
-                            .frame(maxWidth: .infinity)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color(.tertiaryLabel), lineWidth: 1)
-                            )
-                            .onDrag {
-                                NSItemProvider(object: block.id.uuidString as NSString)
-                            }
-                    }
-
-                    if availableBlocks.isEmpty {
-                        Text("All blocks assigned. Drag to a new day to rearrange.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Tap or drop to schedule")
-                    .font(.headline)
-
-                WeeklyCalendarView(
-                    sessions: sessionDisplays,
-                    startWeekday: 1,
-                    onSessionTap: { session in
-                        assignments.removeValue(forKey: session.dayOfWeek)
-                    },
-                    droppable: true,
-                    onDropItem: { idString, day in
-                        guard let uuid = UUID(uuidString: idString), let block = blockLookup[uuid] else { return }
-                        assignments[day] = block
-                    },
-                    onClearDay: { day in
-                        assignments.removeValue(forKey: day)
-                    }
-                )
-            }
+            header
+            sessionsControl
+            availableBlocksGrid
+            calendarSection
 
             HStack {
                 Button("Back", action: onBack)
@@ -138,6 +48,115 @@ struct ScheduleView: View {
                 Button("Continue", action: onNext)
                     .buttonStyle(.borderedProminent)
             }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Plan your training week")
+                .font(.title2)
+                .bold()
+            Text("Drag workouts into the days you plan to train. We’ll build your split based on this schedule.")
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private var sessionsControl: some View {
+        VStack(spacing: 12) {
+            stepperControl
+            warningDisplay
+        }
+    }
+    
+        private var stepperControl: some View {
+            Stepper(value: Binding(
+                get: { Double(availableDays) },
+                set: { availableDays = clampDays(Int($0)) }
+            ), in: 2...6, step: 1) {
+                stepperLabel
+            }
+            .onChange(of: availableDays) { _ in
+                assignments = [:]
+            }
+        }
+        
+        private var stepperLabel: some View {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Sessions per week")
+                        .bold()
+                    Text("Training age: \(trainingAge.readable)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(availableDays) sessions")
+            }
+        }
+        
+        @ViewBuilder
+        private var warningDisplay: some View {        if let warningText {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.yellow)
+                Text(warningText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.1)))
+        }
+    }
+
+    private var availableBlocksGrid: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Available blocks")
+                .font(.headline)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+                ForEach(availableBlocks) { block in
+                    Text(block.name)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(.tertiaryLabel), lineWidth: 1))
+                        .onDrag {
+                            NSItemProvider(object: block.id.uuidString as NSString)
+                        }
+                }
+
+                if availableBlocks.isEmpty {
+                    Text("All blocks assigned. Drag to a new day to rearrange.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+    
+    private var calendarSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Tap or drop to schedule")
+                .font(.headline)
+
+            WeeklyCalendarView(
+                sessions: sessionDisplays,
+                startWeekday: startWeekday,
+                onSessionTap: { session in
+                    assignments.removeValue(forKey: session.dayOfWeek)
+                },
+                droppable: true,
+                onDropItem: { idString, day in
+                    guard let uuid = UUID(uuidString: idString), let block = blockLookup[uuid] else { return }
+                    assignments[day] = block
+                },
+                onClearDay: { day in
+                    assignments.removeValue(forKey: day)
+                }
+            )
         }
     }
 
