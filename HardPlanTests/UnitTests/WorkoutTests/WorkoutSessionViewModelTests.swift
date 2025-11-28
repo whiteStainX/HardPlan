@@ -13,7 +13,8 @@ private final class MockWorkoutExerciseRepository: ExerciseRepositoryProtocol {
     func getAllExercises() -> [Exercise] {
         [
             Exercise(id: "squat", name: "Squat", pattern: .squat, type: .compound, equipment: .barbell, primaryMuscle: .quads),
-            Exercise(id: "curls", name: "Bicep Curls", pattern: .isolation, type: .isolation, equipment: .dumbbell, primaryMuscle: .biceps)
+            Exercise(id: "curls", name: "Bicep Curls", pattern: .isolation, type: .isolation, equipment: .dumbbell, primaryMuscle: .biceps),
+            Exercise(id: "leg_press", name: "Leg Press", pattern: .squat, type: .machine, equipment: .machine, primaryMuscle: .quads)
         ]
     }
     func saveUserExercise(_ exercise: Exercise) {}
@@ -33,6 +34,14 @@ private final class MockAdherenceService: AdherenceServiceProtocol {
     }
 }
 
+private final class MockSubstitutionService: SubstitutionServiceProtocol {
+    var optionsToReturn: [SubstitutionOption] = []
+    
+    func getOptions(for original: Exercise, allExercises: [Exercise], user: UserProfile) -> [SubstitutionOption] {
+        return optionsToReturn
+    }
+}
+
 // MARK: - Tests
 
 @MainActor
@@ -40,7 +49,9 @@ final class WorkoutSessionViewModelTests: XCTestCase {
     private var session: ScheduledSession!
     private var mockExerciseRepo: MockWorkoutExerciseRepository!
     private var mockAdherenceService: MockAdherenceService!
+    private var mockSubstitutionService: MockSubstitutionService!
     private var sut: WorkoutSessionViewModel!
+    private var user: UserProfile!
 
     override func setUp() {
         super.setUp()
@@ -50,19 +61,26 @@ final class WorkoutSessionViewModelTests: XCTestCase {
 
         mockExerciseRepo = MockWorkoutExerciseRepository()
         mockAdherenceService = MockAdherenceService()
+        mockSubstitutionService = MockSubstitutionService()
+        
+        user = UserProfile(name: "Test", trainingAge: .novice, goal: .strength)
         
         sut = WorkoutSessionViewModel(
             session: session,
             exerciseRepository: mockExerciseRepo,
-            adherenceService: mockAdherenceService
+            adherenceService: mockAdherenceService,
+            substitutionService: mockSubstitutionService
         )
+        sut.updateUserProfile(user)
     }
 
     override func tearDown() {
         sut = nil
         mockAdherenceService = nil
         mockExerciseRepo = nil
+        mockSubstitutionService = nil
         session = nil
+        user = nil
         super.tearDown()
     }
 
@@ -111,5 +129,39 @@ final class WorkoutSessionViewModelTests: XCTestCase {
         // THEN
         XCTAssertFalse(sut.isShortOnTime)
         XCTAssertEqual(sut.exerciseEntries.count, 2, "Toggling off should restore the original session")
+    }
+
+    func testApplySubstitutionUpdatesViewModelState() {
+        // GIVEN
+        let originalEntry = sut.exerciseEntries[0]
+        XCTAssertEqual(originalEntry.exerciseName, "Squat")
+        
+        let substitution = SubstitutionOption(id: "leg_press", exerciseName: "Leg Press", specificityScore: 0.8, warning: nil)
+        
+        // WHEN
+        sut.applySubstitution(option: substitution, to: originalEntry.id)
+        
+        // THEN
+        let updatedEntry = sut.exerciseEntries[0]
+        XCTAssertEqual(updatedEntry.exerciseName, "Leg Press")
+        XCTAssertEqual(updatedEntry.scheduled.exerciseId, "leg_press")
+    }
+
+    func testAutoRegulationReducesLoadForNextSet() {
+        // GIVEN
+        let exerciseId = sut.exerciseEntries[0].id
+        let firstSetId = sut.exerciseEntries[0].sets[0].id
+        let initialNextSetLoad = sut.exerciseEntries[0].sets[1].load
+        
+        // Set an RPE of 9.5, which is > 1.0 over the target RPE of 8
+        sut.exerciseEntries[0].sets[0].rpe = 9.5
+        
+        // WHEN
+        _ = sut.markSetComplete(exerciseId: exerciseId, setId: firstSetId)
+        
+        // THEN
+        let updatedNextSetLoad = sut.exerciseEntries[0].sets[1].load
+        XCTAssertNotEqual(initialNextSetLoad, updatedNextSetLoad, "Load for next set should have changed")
+        XCTAssertEqual(sut.toastMessage, "Load reduced for next set")
     }
 }
