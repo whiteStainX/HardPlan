@@ -28,11 +28,27 @@ struct OnboardingView: View {
                         onNext: viewModel.advanceFromGoal,
                         onBack: { viewModel.step = .welcome }
                     )
+                case .focus:
+                    TrainingFocusView(
+                        goal: $viewModel.selectedGoal,
+                        weakPoints: $viewModel.weakPoints
+                    )
+                    .toolbar(.hidden, for: .navigationBar)
+                    .safeAreaInset(edge: .bottom) {
+                        HStack {
+                            Button("Back") { viewModel.step = .goal }
+                            Spacer()
+                            Button("Continue", action: viewModel.advanceFromFocus)
+                                .buttonStyle(.borderedProminent)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial)
+                    }
                 case .experience:
                     ExperienceView(
                         selectedTrainingAge: $viewModel.selectedTrainingAge,
                         onNext: viewModel.advanceFromExperience,
-                        onBack: { viewModel.step = .goal }
+                        onBack: { viewModel.step = .focus }
                     )
                 case .schedule:
                     ScheduleView(
@@ -42,9 +58,25 @@ struct OnboardingView: View {
                             set: { viewModel.updateAvailableDays($0) }
                         ),
                         warningText: viewModel.adherenceWarning(),
-                        onNext: viewModel.startGeneratingProfile,
+                        onNext: viewModel.advanceFromSchedule,
                         onBack: { viewModel.step = .experience }
                     )
+                case .units:
+                    UnitSettingsView(
+                        unit: $viewModel.unit,
+                        minPlateIncrement: $viewModel.minPlateIncrement
+                    )
+                    .toolbar(.hidden, for: .navigationBar)
+                    .safeAreaInset(edge: .bottom) {
+                        HStack {
+                            Button("Back") { viewModel.step = .schedule }
+                            Spacer()
+                            Button("Generate Plan", action: viewModel.startGeneratingProfile)
+                                .buttonStyle(.borderedProminent)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial)
+                    }
                 case .generating:
                     GeneratingView()
                 }
@@ -73,13 +105,17 @@ struct OnboardingView: View {
     private func stepLabel(for step: OnboardingViewModel.Step) -> String {
         switch step {
         case .welcome:
-            return "Step 1 of 4: Welcome"
+            return "Step 1 of 6: Welcome"
         case .goal:
-            return "Step 2 of 4: Goal"
+            return "Step 2 of 6: Goal"
+        case .focus:
+            return "Step 3 of 6: Focus"
         case .experience:
-            return "Step 3 of 4: Training Age"
+            return "Step 4 of 6: Training Age"
         case .schedule:
-            return "Step 4 of 4: Schedule"
+            return "Step 5 of 6: Schedule"
+        case .units:
+            return "Step 6 of 6: Units"
         case .generating:
             return "Generating your program"
         }
