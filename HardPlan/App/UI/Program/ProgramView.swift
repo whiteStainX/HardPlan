@@ -4,31 +4,26 @@ import Combine
 struct ProgramView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = ProgramViewModel()
-    @State private var selectedSession: ProgramSessionDisplay?
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    if viewModel.sessions.isEmpty {
+            Group {
+                if viewModel.sessions.isEmpty {
+                    ScrollView {
                         placeholderCard
-                    } else {
-                        WeeklyCalendarView(
-                            sessions: viewModel.sessions,
-                            workoutLogs: appState.workoutLogs,
-                            startWeekday: startWeekday
-                        ) { session in
-                            selectedSession = session
+                            .padding()
+                    }
+                    .background(Color(.systemGroupedBackground))
+                } else {
+                    List {
+                        ForEach(orderedWeekdays, id: \.self) { weekday in
+                            dayRow(for: weekday)
                         }
                     }
+                    .listStyle(.insetGrouped)
                 }
-                .padding()
             }
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("Program")
-            .navigationDestination(item: $selectedSession) { session in
-                ProgramSessionDetailView(session: session)
-            }
         }
         .onAppear {
             viewModel.refresh(program: appState.activeProgram)
@@ -40,6 +35,10 @@ struct ProgramView: View {
 
     private var startWeekday: Int {
         appState.userProfile?.firstDayOfWeek ?? Calendar.current.firstWeekday
+    }
+
+    private var orderedWeekdays: [Int] {
+        (0..<7).map { ((startWeekday + $0 - 1) % 7) + 1 }
     }
 
     private var placeholderCard: some View {
@@ -55,8 +54,57 @@ struct ProgramView: View {
                         .foregroundStyle(.secondary)
                 }
                 .multilineTextAlignment(.center)
-                .padding()
+                .padding(),
+                alignment: .center
             )
+    }
+
+    @ViewBuilder
+    private func dayRow(for weekday: Int) -> some View {
+        let label = viewModel.shortDayLabel(for: weekday)
+
+        if let session = viewModel.session(for: weekday) {
+            NavigationLink {
+                ProgramSessionDetailView(session: session)
+            } label: {
+                HStack(spacing: 12) {
+                    dayBadge(text: label)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(session.sessionName)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text("\(session.exercises.count) exercise\(session.exercises.count == 1 ? "" : "s")")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .font(.footnote)
+                }
+                .padding(.vertical, 6)
+            }
+        } else {
+            HStack(spacing: 12) {
+                dayBadge(text: label)
+                Text("Rest")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func dayBadge(text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -159,6 +207,19 @@ final class ProgramViewModel: ObservableObject {
                     exercises: exercises
                 )
             }
+    }
+
+    func session(for weekday: Int) -> ProgramSessionDisplay? {
+        sessions.first { $0.dayOfWeek == weekday }
+    }
+
+    func shortDayLabel(for weekday: Int) -> String {
+        let symbols = calendar.shortWeekdaySymbols
+        if weekday >= 1 && weekday <= symbols.count {
+            return symbols[weekday - 1]
+        }
+
+        return "Day \(weekday)"
     }
 
     private func dayLabel(for weekday: Int) -> String {

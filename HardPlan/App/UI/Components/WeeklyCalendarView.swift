@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct WeeklyCalendarView: View {
     let sessions: [ProgramSessionDisplay]
@@ -85,7 +84,7 @@ struct WeeklyCalendarView: View {
     }()
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 7), spacing: 12) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 7), spacing: 10) {
             ForEach(orderedWeekdays, id: \.self) { weekday in
                 dayCell(for: weekday)
             }
@@ -94,34 +93,42 @@ struct WeeklyCalendarView: View {
 
     private func dayCell(for weekday: Int) -> some View {
         let status = statusByWeekday[weekday]
+        let daySessions = sessionsByDay[weekday] ?? []
 
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(weekdayLabel(for: weekday))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text(shortWeekdayLabel(for: weekday))
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(Capsule().fill(Color(.systemBackground)))
+                    .overlay(Capsule().stroke(Color(.tertiaryLabel), lineWidth: 1))
 
-            if let daySessions = sessionsByDay[weekday], !daySessions.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                Spacer()
+
+                if let status {
+                    statusBadge(for: status)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                if daySessions.isEmpty {
+                    Text("Rest")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .background(RoundedRectangle(cornerRadius: 10).stroke(Color(.tertiaryLabel).opacity(0.4)))
+                } else {
                     ForEach(daySessions) { session in
-                        HStack(alignment: .center, spacing: 8) {
-                            Button {
-                                onSessionTap(session)
-                            } label: {
-                                HStack {
-                                    Text(session.sessionName)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(8)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                            }
-                            .buttonStyle(.plain)
+                        HStack(spacing: 8) {
+                            Text(session.sessionName)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+
+                            Spacer()
 
                             if droppable {
                                 Button {
@@ -129,66 +136,43 @@ struct WeeklyCalendarView: View {
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundStyle(Color(.tertiaryLabel))
+                                        .font(.callout)
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(.tertiaryLabel).opacity(0.35)))
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onSessionTap(session)
+                        }
+                        .draggable(session.id.uuidString)
                     }
                 }
-            } else {
-                Text("Rest")
-                    .font(.headline)
-                    .foregroundStyle(Color(.tertiaryLabel))
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
-        .background(backgroundColor(for: status))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(alignment: .topTrailing) {
-            if let status {
-                statusBadge(for: status)
-            }
-        }
-        .onDrop(of: [.text], isTargeted: nil) { providers in
-            guard droppable else { return false }
-            guard let provider = providers.first else { return false }
-
-            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { data, _ in
-                guard
-                    let data = data as? Data,
-                    let idString = String(data: data, encoding: .utf8)
-                else { return }
-
-                DispatchQueue.main.async {
-                    onDropItem(idString, weekday)
-                }
-            }
-
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .dropDestination(for: String.self) { items, _ in
+            guard droppable, let idString = items.first else { return false }
+            onDropItem(idString, weekday)
             return true
         }
     }
 
-    private func weekdayLabel(for weekday: Int) -> String {
-        let symbols = calendar.weekdaySymbols
+    private func shortWeekdayLabel(for weekday: Int) -> String {
+        let symbols = calendar.shortWeekdaySymbols
         if weekday >= 1 && weekday <= symbols.count {
-            return symbols[weekday - 1]
+            return String(symbols[weekday - 1].prefix(2)).uppercased()
         }
 
-        return "Day \(weekday)"
-    }
-
-    private func backgroundColor(for status: DayStatus?) -> Color {
-        switch status {
-        case .completed:
-            return Color.green.opacity(0.15)
-        case .skipped:
-            return Color.yellow.opacity(0.15)
-        case .missed:
-            return Color.red.opacity(0.12)
-        case .none:
-            return Color(.secondarySystemBackground)
-        }
+        return "D\(weekday)"
     }
 
     private func statusBadge(for status: DayStatus) -> some View {
@@ -208,9 +192,10 @@ struct WeeklyCalendarView: View {
         }
 
         return Image(systemName: icon)
-            .font(.title3)
+            .font(.footnote)
             .foregroundStyle(tint)
-            .padding(8)
+            .padding(6)
+            .background(RoundedRectangle(cornerRadius: 8).fill(tint.opacity(0.15)))
     }
 
     private func parseDate(_ string: String) -> Date? {
