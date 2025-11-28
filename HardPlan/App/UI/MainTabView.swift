@@ -36,15 +36,6 @@ struct MainTabView: View {
     }
 }
 
-private struct DashboardView: View {
-    var body: some View {
-        NavigationStack {
-            Text("Dashboard coming soon")
-                .navigationTitle("Dashboard")
-        }
-    }
-}
-
 private struct ProgramView: View {
     var body: some View {
         NavigationStack {
