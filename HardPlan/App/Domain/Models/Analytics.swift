@@ -70,3 +70,20 @@ struct AnalyticsSnapshot: Identifiable, Codable, Equatable {
         self.lastUpdatedAt = lastUpdatedAt
     }
 }
+
+struct TempoWarning: Identifiable, Codable, Equatable {
+    enum Level: String, Codable {
+        case info
+        case warning
+    }
+
+    var id: UUID = UUID()
+    var level: Level
+    var message: String
+
+    init(id: UUID = UUID(), level: Level, message: String) {
+        self.id = id
+        self.level = level
+        self.message = message
+    }
+}
