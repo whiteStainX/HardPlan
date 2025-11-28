@@ -15,6 +15,7 @@ struct ProgramView: View {
                     } else {
                         WeeklyCalendarView(
                             sessions: viewModel.sessions,
+                            workoutLogs: appState.workoutLogs,
                             startWeekday: viewModel.startWeekday
                         ) { session in
                             selectedSession = session
