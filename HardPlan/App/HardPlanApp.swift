@@ -9,9 +9,29 @@ import SwiftUI
 
 @main
 struct HardPlanApp: App {
+    @StateObject private var appState = AppState()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(appState)
+                .task {
+                    appState.loadData()
+                }
+        }
+    }
+}
+
+private struct RootView: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        Group {
+            if appState.userProfile == nil {
+                OnboardingView()
+            } else {
+                MainTabView()
+            }
         }
     }
 }
