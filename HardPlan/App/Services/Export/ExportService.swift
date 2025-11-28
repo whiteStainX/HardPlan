@@ -152,36 +152,26 @@ final class ExportService: ExportServiceProtocol {
                 let exerciseName = exercise?.name ?? "Unknown Exercise"
 
                 if exerciseLog.sets.isEmpty {
-                    let fields: [String] = baseFields(
-                        log: log,
-                        activeProgram: activeProgram
-                    ) + [
+                    var fields: [String] = baseFields(log: log, activeProgram: activeProgram)
+                    fields.append(contentsOf: [
                         exerciseLog.exerciseId,
                         exerciseName,
                         primaryMuscle,
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
+                        "", "", "", "", "", "", // Empty set details
                         exerciseLog.wasSwapped ? "true" : "false",
                         exerciseLog.originalExerciseId ?? "",
                         numberFormatter.string(from: NSNumber(value: log.sessionRPE)) ?? "",
                         String(log.wellnessScore),
                         log.checklistScore.map(String.init) ?? "",
                         log.notes
-                    ]
-
+                    ])
                     lines.append(fields.map { escapeCSV($0) }.joined(separator: ","))
                     continue
                 }
 
                 for set in exerciseLog.sets {
-                    let fields: [String] = baseFields(
-                        log: log,
-                        activeProgram: activeProgram
-                    ) + [
+                    var fields: [String] = baseFields(log: log, activeProgram: activeProgram)
+                    fields.append(contentsOf: [
                         exerciseLog.exerciseId,
                         exerciseName,
                         primaryMuscle,
@@ -198,8 +188,7 @@ final class ExportService: ExportServiceProtocol {
                         String(log.wellnessScore),
                         log.checklistScore.map(String.init) ?? "",
                         log.notes
-                    ]
-
+                    ])
                     lines.append(fields.map { escapeCSV($0) }.joined(separator: ","))
                 }
             }
@@ -235,14 +224,14 @@ final class ExportService: ExportServiceProtocol {
     }
 
     private func summaryRow(for log: WorkoutLog, activeProgram: ActiveProgram?) -> String {
-        let fields: [String] = baseFields(log: log, activeProgram: activeProgram) +
-            Array(repeating: "", count: 12) +
-            [
-                numberFormatter.string(from: NSNumber(value: log.sessionRPE)) ?? "",
-                String(log.wellnessScore),
-                log.checklistScore.map(String.init) ?? "",
-                log.notes
-            ]
+        var fields: [String] = baseFields(log: log, activeProgram: activeProgram)
+        fields.append(contentsOf: Array(repeating: "", count: 12))
+        fields.append(contentsOf: [
+            numberFormatter.string(from: NSNumber(value: log.sessionRPE)) ?? "",
+            String(log.wellnessScore),
+            log.checklistScore.map(String.init) ?? "",
+            log.notes
+        ])
 
         return fields.map { escapeCSV($0) }.joined(separator: ",")
     }

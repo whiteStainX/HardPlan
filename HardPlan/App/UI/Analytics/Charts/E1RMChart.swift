@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import Combine
 
 struct E1RMChart: View {
     let history: [E1RMPoint]

@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import Combine
 
 struct AnalyticsView: View {
     @EnvironmentObject private var appState: AppState

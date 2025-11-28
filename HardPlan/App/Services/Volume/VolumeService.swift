@@ -5,6 +5,7 @@
 //  Implements the Overlap Rule for weekly volume calculation (Phase 2.1).
 
 import Foundation
+import Combine
 
 protocol VolumeServiceProtocol {
     func calculateWeeklyVolume(logs: [WorkoutLog]) -> [MuscleGroup: Double]
