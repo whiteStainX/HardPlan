@@ -36,15 +36,6 @@ struct MainTabView: View {
     }
 }
 
-private struct AnalyticsView: View {
-    var body: some View {
-        NavigationStack {
-            Text("Analytics coming soon")
-                .navigationTitle("Analytics")
-        }
-    }
-}
-
 #Preview {
     MainTabView()
         .environmentObject(AppState())
