@@ -6,23 +6,14 @@ final class OnboardingViewModel: ObservableObject {
     enum Step: Int, CaseIterable {
         case welcome
         case goal
+        case focus
         case experience
         case schedule
+        case units
         case generating
 
         var progress: Double {
-            switch self {
-            case .welcome:
-                return 0.15
-            case .goal:
-                return 0.35
-            case .experience:
-                return 0.55
-            case .schedule:
-                return 0.75
-            case .generating:
-                return 1.0
-            }
+            Double(rawValue) / Double(Step.generating.rawValue)
         }
     }
 
@@ -30,6 +21,9 @@ final class OnboardingViewModel: ObservableObject {
     @Published var selectedGoal: Goal = .hypertrophy
     @Published var selectedTrainingAge: TrainingAge = .novice
     @Published var availableDays: Int = 3
+    @Published var weakPoints: [MuscleGroup] = []
+    @Published var unit: UnitSystem = .lbs
+    @Published var minPlateIncrement: Double = 2.5
     @Published var isGenerating: Bool = false
 
     private var onboardingAction: ((UserProfile) -> Void)?
@@ -50,6 +44,10 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func advanceFromGoal() {
+        step = .focus
+    }
+
+    func advanceFromFocus() {
         step = .experience
     }
 
@@ -63,6 +61,10 @@ final class OnboardingViewModel: ObservableObject {
 
     func updateAvailableDays(_ days: Int) {
         availableDays = max(2, min(6, days))
+    }
+
+    func advanceFromSchedule() {
+        step = .units
     }
 
     func startGeneratingProfile() {
@@ -95,8 +97,9 @@ final class OnboardingViewModel: ObservableObject {
             trainingAge: selectedTrainingAge,
             goal: selectedGoal,
             availableDays: Array(1...availableDays),
-            unit: .lbs,
-            minPlateIncrement: 2.5,
+            weakPoints: weakPoints,
+            unit: unit,
+            minPlateIncrement: minPlateIncrement,
             onboardingCompleted: false
         )
     }
