@@ -9,7 +9,7 @@
 import Foundation
 
 final class DependencyContainer {
-    static let shared = DependencyContainer()
+    nonisolated(unsafe) static let shared = DependencyContainer()
 
     private var registry: [ObjectIdentifier: () -> Any] = [:]
     private let lock = NSLock()
