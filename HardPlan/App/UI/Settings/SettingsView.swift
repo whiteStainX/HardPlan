@@ -50,15 +50,16 @@ struct SettingsView: View {
             .sheet(isPresented: $isPresentingShareSheet) {
                 ShareSheet(activityItems: shareItems)
             }
-            .confirmationDialog(
-                "This will remove your profile, program, and logs.",
-                isPresented: $isConfirmingReset,
-                titleVisibility: .visible
+            .alert(
+                "Reset App?",
+                isPresented: $isConfirmingReset
             ) {
-                Button("Reset App", role: .destructive) {
+                Button("Reset All Data", role: .destructive) {
                     appState.resetApp()
                 }
                 Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently remove your profile, program, and all workout logs.")
             }
         }
     }
