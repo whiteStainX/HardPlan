@@ -34,6 +34,21 @@ private final class MockExerciseRepository_AppState: ExerciseRepositoryProtocol 
     func saveUserExercise(_ exercise: Exercise) {}
 }
 
+private final class MockAnalyticsService_AppState: AnalyticsServiceProtocol {
+    var lastProgram: ActiveProgram?
+    var lastLogs: [WorkoutLog]?
+
+    func calculateE1RM(load: Double, reps: Int) -> Double { load }
+    func generateHistory(logs: [WorkoutLog], exerciseId: String) -> [E1RMPoint] { [] }
+    func analyzeTempo(logs: [WorkoutLog]) -> TempoWarning? { nil }
+
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] {
+        lastProgram = program
+        lastLogs = logs
+        return []
+    }
+}
+
 private final class MockProgressionService_AppState: ProgressionServiceProtocol {
     var calculateNextStateCalled = false
     var nextStateToReturn: ProgressionState?
@@ -73,6 +88,7 @@ final class AppStateTests: XCTestCase {
     private var mockUserRepo: MockUserRepository_AppState!
     private var mockWorkoutRepo: MockWorkoutRepository_AppState!
     private var mockExerciseRepo: MockExerciseRepository_AppState!
+    private var mockAnalyticsService: MockAnalyticsService_AppState!
     private var mockProgressionService: MockProgressionService_AppState!
     private var mockProgramGenerator: MockProgramGenerator_AppState!
     private var mockPersistence: MockPersistenceController_AppState!
@@ -85,6 +101,7 @@ final class AppStateTests: XCTestCase {
         mockUserRepo = MockUserRepository_AppState()
         mockWorkoutRepo = MockWorkoutRepository_AppState()
         mockExerciseRepo = MockExerciseRepository_AppState()
+        mockAnalyticsService = MockAnalyticsService_AppState()
         mockProgressionService = MockProgressionService_AppState()
         mockProgramGenerator = MockProgramGenerator_AppState()
         mockPersistence = MockPersistenceController_AppState()
@@ -93,6 +110,7 @@ final class AppStateTests: XCTestCase {
             userRepository: mockUserRepo,
             workoutRepository: mockWorkoutRepo,
             exerciseRepository: mockExerciseRepo,
+            analyticsService: mockAnalyticsService,
             progressionService: mockProgressionService,
             programGenerator: mockProgramGenerator,
             persistenceController: mockPersistence
@@ -104,6 +122,7 @@ final class AppStateTests: XCTestCase {
         mockUserRepo = nil
         mockWorkoutRepo = nil
         mockExerciseRepo = nil
+        mockAnalyticsService = nil
         mockProgressionService = nil
         mockProgramGenerator = nil
         mockPersistence = nil
@@ -173,5 +192,9 @@ final class AppStateTests: XCTestCase {
         // 5. Verify the updated program was persisted
         XCTAssertNotNil(mockPersistence.savedObject)
         XCTAssertEqual(mockPersistence.savedFilename, "active_program.json")
+
+        // 6. Verify analytics snapshots refreshed with latest state
+        XCTAssertEqual(mockAnalyticsService.lastProgram?.progressionData[squatExercise.id]?.currentLoad, progressedLoad)
+        XCTAssertEqual(mockAnalyticsService.lastLogs?.count, sut.workoutLogs.count)
     }
 }
