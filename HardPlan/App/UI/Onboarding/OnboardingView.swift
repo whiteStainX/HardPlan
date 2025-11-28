@@ -30,17 +30,18 @@ struct OnboardingView: View {
                     )
                 case .experience:
                     ExperienceView(
-                        selectedTrainingAge: viewModel.selectedTrainingAge,
-                        onSelect: viewModel.selectTrainingAge,
+                        selectedTrainingAge: $viewModel.selectedTrainingAge,
                         onNext: viewModel.advanceFromExperience,
                         onBack: { viewModel.step = .goal }
                     )
                 case .schedule:
                     ScheduleView(
                         trainingAge: viewModel.selectedTrainingAge,
-                        availableDays: viewModel.availableDays,
+                        availableDays: Binding(
+                            get: { viewModel.availableDays },
+                            set: { viewModel.updateAvailableDays($0) }
+                        ),
                         warningText: viewModel.adherenceWarning(),
-                        onDaysChanged: viewModel.updateAvailableDays,
                         onNext: viewModel.startGeneratingProfile,
                         onBack: { viewModel.step = .experience }
                     )
