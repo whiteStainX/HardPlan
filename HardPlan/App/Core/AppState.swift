@@ -13,10 +13,12 @@ final class AppState: ObservableObject {
     @Published var userProfile: UserProfile?
     @Published var activeProgram: ActiveProgram?
     @Published var workoutLogs: [WorkoutLog]
+    @Published var analyticsSnapshots: [AnalyticsSnapshot]
 
     private let userRepository: UserRepositoryProtocol
     private let workoutRepository: WorkoutRepositoryProtocol
     private let exerciseRepository: ExerciseRepositoryProtocol
+    private let analyticsService: AnalyticsServiceProtocol
     private let progressionService: ProgressionServiceProtocol
     private let programGenerator: ProgramGeneratorProtocol
     private let persistenceController: JSONPersistenceController
@@ -27,6 +29,7 @@ final class AppState: ObservableObject {
         userRepository: UserRepositoryProtocol = DependencyContainer.shared.resolve(),
         workoutRepository: WorkoutRepositoryProtocol = DependencyContainer.shared.resolve(),
         exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve(),
+        analyticsService: AnalyticsServiceProtocol = DependencyContainer.shared.resolve(),
         progressionService: ProgressionServiceProtocol = DependencyContainer.shared.resolve(),
         programGenerator: ProgramGeneratorProtocol = DependencyContainer.shared.resolve(),
         persistenceController: JSONPersistenceController = DependencyContainer.shared.resolve()
@@ -34,10 +37,12 @@ final class AppState: ObservableObject {
         self.userRepository = userRepository
         self.workoutRepository = workoutRepository
         self.exerciseRepository = exerciseRepository
+        self.analyticsService = analyticsService
         self.progressionService = progressionService
         self.programGenerator = programGenerator
         self.persistenceController = persistenceController
         self.workoutLogs = []
+        self.analyticsSnapshots = []
         print("✅ AppState: Initialized.")
     }
 
@@ -45,6 +50,7 @@ final class AppState: ObservableObject {
         userProfile = userRepository.getProfile()
         activeProgram = loadActiveProgram()
         workoutLogs = workoutRepository.getHistory()
+        refreshAnalytics()
     }
 
     func onboardUser(profile: UserProfile) {
@@ -73,6 +79,7 @@ final class AppState: ObservableObject {
     func appendWorkoutLog(_ log: WorkoutLog) {
         workoutLogs.append(log)
         workoutRepository.saveLog(log)
+        refreshAnalytics()
     }
 
     func persistActiveProgram() {
@@ -120,6 +127,16 @@ final class AppState: ObservableObject {
 
         activeProgram = program
         persistActiveProgram()
+        refreshAnalytics()
+    }
+
+    private func refreshAnalytics() {
+        guard let activeProgram else {
+            analyticsSnapshots = []
+            return
+        }
+
+        analyticsSnapshots = analyticsService.updateSnapshots(program: activeProgram, logs: workoutLogs)
     }
 
     private func repRange(from exerciseLog: CompletedExercise) -> ClosedRange<Int>? {

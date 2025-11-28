@@ -18,7 +18,19 @@
 
 ---
 
-## Step 5.2: Visualizations (Swift Charts)
+## Step 5.2: Program Overview View
+
+**Action:** Implement the UI to display the `ActiveProgram.weeklySchedule`.
+
+*   **File:** `App/UI/Program/ProgramView.swift`
+*   **Logic:**
+    *   Display a list of `ScheduledSession`s for the week.
+    *   Each item should show the day and session name (e.g., "Monday - Upper A").
+    *   Tapping a session could navigate to a detail view showing the exercises for that day.
+
+---
+
+## Step 5.3: Visualizations (Swift Charts)
 
 **Action:** Build the Chart views.
 
@@ -32,7 +44,7 @@
 
 ---
 
-## Step 5.3: Post-Block Assessment Flow
+## Step 5.4: Post-Block Assessment Flow
 
 **Action:** The "Check-in" between mesocycles.
 
@@ -48,7 +60,7 @@
 
 ---
 
-## Step 5.4: Data Export
+## Step 5.5: Data Export
 
 **Action:** Allow users to own their data.
 
@@ -60,7 +72,7 @@
 
 ---
 
-## Step 5.5: User-Created Exercises
+## Step 5.6: User-Created Exercises
 
 **Action:** UI for adding custom movements.
 
@@ -71,7 +83,7 @@
 
 ---
 
-## Step 5.6: Final Polish
+## Step 5.7: Final Polish
 
 *   **Action:** Review and refine.
     *   **Tempo Warnings:** Add visual alert in `WorkoutSessionView` if tempo is too slow in Hypertrophy block.
@@ -80,10 +92,10 @@
 
 ---
 
-## Step 5.7: Final Validation
+## Step 5.8: Final Validation
 
 **Action:** The "Golden Path" test.
 *   Simulate 4 weeks of training (using seed scripts or manual entry).
-*   Verify "Post Block Assessment" triggers.
+*   Verify "Post-Block Assessment" triggers.
 *   Complete Assessment -> Verify Deload week is generated.
 *   Export Data -> Verify JSON structure.
