@@ -19,7 +19,7 @@
     *   Add `1.0` set to the `primaryMuscle`.
     *   Add `factor` (0.5) to each `secondaryMuscle`.
     *   Return the aggregated dictionary.
-*   **Tests:** `Tests/UnitTests/ServiceTests/VolumeServiceTests.swift`
+*   **Tests:** `HardPlanTests/UnitTests/ServiceTests/VolumeServiceTests.swift`
     *   Create mock logs (e.g., 3 sets of Squats).
     *   Assert: Quads = 3.0, Glutes = 3.0, Adductors = 1.5.
 
@@ -49,7 +49,7 @@
     *   Call `strategy.calculateNext(...)`.
     *   Return the updated `ProgressionState`.
 
-*   **Tests:** `Tests/UnitTests/ServiceTests/ProgressionTests/`
+*   **Tests:** `HardPlanTests/UnitTests/ServiceTests/ProgressionTests/`
     *   `NoviceTests.swift`: Test Success (+5lbs), Fail (Retry), Stall (Reset).
     *   `IntermediateTests.swift`: Test Wave progression (Week 1->2->3).
 

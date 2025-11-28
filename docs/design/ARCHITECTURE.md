@@ -130,17 +130,17 @@ SwiftUI views do not contain training logic; they only:
 ### 4. Directory Structure
 
 ```
-/App
-  /Domain          (Structs & Enums)
-  /Data            (Repositories & JSON Managers)
-  /Services        (The Logic Engines)
-    /Progression
-    /Volume
-    /Adherence
-  /Core            (AppState & Dependency Injection)
-  /UI              (SwiftUI Views & ViewModels)
-    /Onboarding
-    /Dashboard
-    /Workout
-    /Components    (Shared UI elements like Rings/Charts)
+/
+  /HardPlan        (Main App Target)
+    /Domain
+    /Data
+    /Services
+    /Core
+    /UI
+  /HardPlanTests   (Unit Test Target)
+    /UnitTests
+      /ServiceTests
+      /DataTests
+  /HardPlanUITests (UI Test Target)
+    /UnitTests
 ```
