@@ -32,12 +32,12 @@ private final class MockAnalyticsService_AppState: AnalyticsServiceProtocol {
     func calculateE1RM(load: Double, reps: Int) -> Double { 0 }
     func generateHistory(logs: [WorkoutLog], exerciseId: String) -> [E1RMPoint] { [] }
     func analyzeTempo(logs: [WorkoutLog]) -> TempoWarning? { nil }
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] { [] }
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> [AnalyticsSnapshot] { [] }
 }
 
 private final class MockProgressionService_AppState: ProgressionServiceProtocol {
     func calculateNextState(current: ProgressionState, log: WorkoutLog, exercise: Exercise, user: UserProfile, program: ActiveProgram, repRange: ClosedRange<Int>?) -> ProgressionState { current }
-    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog]) -> Bool { false }
+    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> Bool { false }
 }
 
 private final class MockProgramGenerator_AppState: ProgramGeneratorProtocol {

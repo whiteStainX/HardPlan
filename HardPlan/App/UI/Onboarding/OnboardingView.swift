@@ -61,6 +61,7 @@ struct OnboardingView: View {
                         ),
                         assignments: $viewModel.dayAssignments,
                         blocks: viewModel.weeklyBlocks,
+                        startWeekday: viewModel.preferredFirstDayOfWeek,
                         warningText: viewModel.adherenceWarning(),
                         onNext: viewModel.advanceFromSchedule,
                         onBack: { viewModel.step = .experience }

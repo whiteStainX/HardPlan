@@ -13,6 +13,8 @@ final class AppState: ObservableObject {
     @Published var userProfile: UserProfile? {
         didSet {
             persistUserProfile()
+            refreshAnalytics()
+            refreshPostBlockAssessmentStatus()
         }
     }
     @Published var activeProgram: ActiveProgram?
@@ -30,7 +32,6 @@ final class AppState: ObservableObject {
 
     private let isoFormatter: ISO8601DateFormatter
     private let dateOnlyFormatter: ISO8601DateFormatter
-    private let calendar: Calendar
 
     private let activeProgramFilename = "active_program.json"
 
@@ -61,8 +62,6 @@ final class AppState: ObservableObject {
         let dateOnlyFormatter = ISO8601DateFormatter()
         dateOnlyFormatter.formatOptions = [.withFullDate]
         self.dateOnlyFormatter = dateOnlyFormatter
-
-        self.calendar = Calendar(identifier: .gregorian)
         print("✅ AppState: Initialized.")
     }
 
@@ -186,7 +185,7 @@ final class AppState: ObservableObject {
             return
         }
 
-        analyticsSnapshots = analyticsService.updateSnapshots(program: activeProgram, logs: workoutLogs)
+        analyticsSnapshots = analyticsService.updateSnapshots(program: activeProgram, logs: workoutLogs, calendar: preferredCalendar)
     }
 
     private func refreshPostBlockAssessmentStatus() {
@@ -195,14 +194,14 @@ final class AppState: ObservableObject {
             return
         }
 
-        postBlockAssessmentDue = progressionService.shouldTriggerPostBlockAssessment(program: program, logs: workoutLogs)
+        postBlockAssessmentDue = progressionService.shouldTriggerPostBlockAssessment(program: program, logs: workoutLogs, calendar: preferredCalendar)
     }
 
     private func syncProgramWeek(using logs: [WorkoutLog], program: inout ActiveProgram) {
         guard let startDate = parseDate(program.startDate) else { return }
         let latest = logs.compactMap { parseDate($0.dateCompleted) }.max() ?? startDate
 
-        let weekDelta = calendar.dateComponents([.weekOfYear], from: startDate, to: latest).weekOfYear ?? 0
+        let weekDelta = preferredCalendar.dateComponents([.weekOfYear], from: startDate, to: latest).weekOfYear ?? 0
         program.currentWeek = max(1, weekDelta + 1)
     }
 
@@ -261,6 +260,12 @@ final class AppState: ObservableObject {
         case .realization, .deload:
             return .accumulation
         }
+    }
+
+    private var preferredCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = userProfile?.firstDayOfWeek ?? calendar.firstWeekday
+        return calendar
     }
 
     private func parseDate(_ string: String) -> Date? {

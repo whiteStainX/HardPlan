@@ -29,6 +29,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var unit: UnitSystem = .lbs
     @Published var minPlateIncrement: Double = 2.5
     @Published var isGenerating: Bool = false
+    @Published var preferredFirstDayOfWeek: Int = Calendar.current.firstWeekday
 
     private var onboardingAction: ((UserProfile, [Int: WorkoutBlock]?) -> Void)?
     private let programGenerator: ProgramGeneratorProtocol
@@ -122,7 +123,8 @@ final class OnboardingViewModel: ObservableObject {
             weakPoints: weakPoints,
             unit: unit,
             minPlateIncrement: minPlateIncrement,
-            onboardingCompleted: false
+            onboardingCompleted: false,
+            firstDayOfWeek: preferredFirstDayOfWeek
         )
 
         weeklyBlocks = programGenerator.generateWeeklyBlocks(for: profile)
@@ -133,7 +135,7 @@ final class OnboardingViewModel: ObservableObject {
         let assignedDays = dayAssignments.keys.sorted()
         let scheduleDays = assignedDays.isEmpty ? Array(1...availableDays) : assignedDays
 
-        UserProfile(
+        return UserProfile(
             name: "Athlete",
             trainingAge: selectedTrainingAge,
             goal: selectedGoal,
@@ -141,7 +143,8 @@ final class OnboardingViewModel: ObservableObject {
             weakPoints: weakPoints,
             unit: unit,
             minPlateIncrement: minPlateIncrement,
-            onboardingCompleted: false
+            onboardingCompleted: false,
+            firstDayOfWeek: preferredFirstDayOfWeek
         )
     }
 }

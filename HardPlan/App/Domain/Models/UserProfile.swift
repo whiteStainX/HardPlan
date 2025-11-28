@@ -52,6 +52,9 @@ struct UserProfile: Identifiable, Codable, Equatable {
     var minPlateIncrement: Double
     var onboardingCompleted: Bool
 
+    /// Preferred first day of the week. Follows the Gregorian weekday index (1 = Sunday).
+    var firstDayOfWeek: Int = Calendar.current.firstWeekday
+
     var progressionOverrides: [String: ProgressionOverride]
     var fundamentalsStatus: FundamentalsStatus?
 
@@ -66,6 +69,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         unit: UnitSystem = .lbs,
         minPlateIncrement: Double = 2.5,
         onboardingCompleted: Bool = false,
+        firstDayOfWeek: Int = Calendar.current.firstWeekday,
         progressionOverrides: [String: ProgressionOverride] = [:],
         fundamentalsStatus: FundamentalsStatus? = nil
     ) {
@@ -79,7 +83,30 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.unit = unit
         self.minPlateIncrement = minPlateIncrement
         self.onboardingCompleted = onboardingCompleted
+        self.firstDayOfWeek = firstDayOfWeek
         self.progressionOverrides = progressionOverrides
         self.fundamentalsStatus = fundamentalsStatus
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, trainingAge, goal, availableDays, weakPoints, excludedExercises
+        case unit, minPlateIncrement, onboardingCompleted, firstDayOfWeek, progressionOverrides, fundamentalsStatus
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        name = try container.decode(String.self, forKey: .name)
+        trainingAge = try container.decode(TrainingAge.self, forKey: .trainingAge)
+        goal = try container.decode(Goal.self, forKey: .goal)
+        availableDays = try container.decodeIfPresent([Int].self, forKey: .availableDays) ?? []
+        weakPoints = try container.decodeIfPresent([MuscleGroup].self, forKey: .weakPoints) ?? []
+        excludedExercises = try container.decodeIfPresent([String].self, forKey: .excludedExercises) ?? []
+        unit = try container.decodeIfPresent(UnitSystem.self, forKey: .unit) ?? .lbs
+        minPlateIncrement = try container.decodeIfPresent(Double.self, forKey: .minPlateIncrement) ?? 2.5
+        onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
+        firstDayOfWeek = try container.decodeIfPresent(Int.self, forKey: .firstDayOfWeek) ?? Calendar.current.firstWeekday
+        progressionOverrides = try container.decodeIfPresent([String: ProgressionOverride].self, forKey: .progressionOverrides) ?? [:]
+        fundamentalsStatus = try container.decodeIfPresent(FundamentalsStatus.self, forKey: .fundamentalsStatus)
     }
 }

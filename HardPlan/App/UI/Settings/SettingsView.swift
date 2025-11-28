@@ -107,6 +107,17 @@ struct SettingsView: View {
 
             LabeledContent("Training Days", value: availableDaysLabel(for: profile.wrappedValue.availableDays))
                 .foregroundStyle(.secondary)
+
+            NavigationLink {
+                LocaleSettingsView(firstDayOfWeek: binding(\.firstDayOfWeek, in: profile))
+            } label: {
+                HStack {
+                    Text("Locale & Calendar")
+                    Spacer()
+                    Text(firstDayLabel(for: profile.wrappedValue.firstDayOfWeek))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -144,6 +155,15 @@ struct SettingsView: View {
         }
 
         return "\(sortedDays.count) days (\(sortedDays.map(String.init).joined(separator: ", ")) per week)"
+    }
+
+    private func firstDayLabel(for weekday: Int) -> String {
+        let symbols = Calendar(identifier: .gregorian).weekdaySymbols
+        if weekday >= 1 && weekday <= symbols.count {
+            return symbols[weekday - 1]
+        }
+
+        return "Sunday"
     }
 
     private func exportData() {
@@ -264,6 +284,7 @@ private struct ScheduleSettingsView: View {
             unit: profile.unit,
             minPlateIncrement: profile.minPlateIncrement,
             onboardingCompleted: profile.onboardingCompleted,
+            firstDayOfWeek: profile.firstDayOfWeek,
             progressionOverrides: profile.progressionOverrides,
             fundamentalsStatus: profile.fundamentalsStatus
         )
