@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ScheduleView: View {
     let trainingAge: TrainingAge
@@ -13,34 +12,15 @@ struct ScheduleView: View {
     var onNext: () -> Void = {}
     var onBack: () -> Void = {}
 
-    private var availableBlocks: [WorkoutBlock] {
-        blocks.filter { block in
-            !assignments.values.contains(where: { $0.id == block.id })
-        }
-    }
-
-    private var sessionDisplays: [ProgramSessionDisplay] {
-        assignments.map { day, block in
-            ProgramSessionDisplay(
-                id: block.id,
-                dayOfWeek: day,
-                dayLabel: weekdayLabel(for: day),
-                sessionName: block.name,
-                exercises: []
-            )
-        }
-    }
-
-    private var blockLookup: [UUID: WorkoutBlock] {
-        Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0) })
+    private var orderedWeekdays: [Int] {
+        (0..<7).map { ((startWeekday + $0 - 1) % 7) + 1 }
     }
 
     var body: some View {
         VStack(spacing: 20) {
             header
             sessionsControl
-            availableBlocksGrid
-            calendarSection
+            daySelectionList
 
             HStack {
                 Button("Back", action: onBack)
@@ -56,7 +36,7 @@ struct ScheduleView: View {
             Text("Plan your training week")
                 .font(.title2)
                 .bold()
-            Text("Drag workouts into the days you plan to train. We’ll build your split based on this schedule.")
+            Text("Pick which days you want to train and assign a block or choose Rest for each one.")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,34 +49,35 @@ struct ScheduleView: View {
         }
     }
     
-        private var stepperControl: some View {
-            Stepper(value: Binding(
-                get: { Double(availableDays) },
-                set: { availableDays = clampDays(Int($0)) }
-            ), in: 2...6, step: 1) {
-                stepperLabel
-            }
-            .onChange(of: availableDays) { _ in
-                assignments = [:]
-            }
+    private var stepperControl: some View {
+        Stepper(value: Binding(
+            get: { Double(availableDays) },
+            set: { availableDays = clampDays(Int($0)) }
+        ), in: 2...6, step: 1) {
+            stepperLabel
         }
-        
-        private var stepperLabel: some View {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Sessions per week")
-                        .bold()
-                    Text("Training age: \(trainingAge.readable)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text("\(availableDays) sessions")
-            }
+        .onChange(of: availableDays) { _ in
+            assignments = [:]
         }
-        
-        @ViewBuilder
-        private var warningDisplay: some View {        if let warningText {
+    }
+
+    private var stepperLabel: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text("Sessions per week")
+                    .bold()
+                Text("Training age: \(trainingAge.readable)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text("\(availableDays) sessions")
+        }
+    }
+
+    @ViewBuilder
+    private var warningDisplay: some View {
+        if let warningText {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.yellow)
@@ -110,54 +91,77 @@ struct ScheduleView: View {
         }
     }
 
-    private var availableBlocksGrid: some View {
+    private var daySelectionList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Available blocks")
+            Text("Schedule your days")
                 .font(.headline)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-                ForEach(availableBlocks) { block in
-                    Text(block.name)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(.tertiaryLabel), lineWidth: 1))
-                        .onDrag {
-                            NSItemProvider(object: block.id.uuidString as NSString)
-                        }
-                }
-
-                if availableBlocks.isEmpty {
-                    Text("All blocks assigned. Drag to a new day to rearrange.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 10) {
+                ForEach(orderedWeekdays, id: \.self) { weekday in
+                    dayPicker(for: weekday)
                 }
             }
         }
     }
-    
-    private var calendarSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Tap or drop to schedule")
-                .font(.headline)
 
-            WeeklyCalendarView(
-                sessions: sessionDisplays,
-                startWeekday: startWeekday,
-                onSessionTap: { session in
-                    assignments.removeValue(forKey: session.dayOfWeek)
-                },
-                droppable: true,
-                onDropItem: { idString, day in
-                    guard let uuid = UUID(uuidString: idString), let block = blockLookup[uuid] else { return }
-                    assignments[day] = block
-                },
-                onClearDay: { day in
-                    assignments.removeValue(forKey: day)
+    private func dayPicker(for weekday: Int) -> some View {
+        let currentSelection = assignments[weekday]
+
+        return Menu {
+            Button {
+                assignments.removeValue(forKey: weekday)
+            } label: {
+                HStack {
+                    Text("Rest")
+                    if currentSelection == nil { Image(systemName: "checkmark") }
                 }
-            )
+            }
+
+            Divider()
+
+            ForEach(blocks) { block in
+                Button {
+                    assign(block, to: weekday)
+                } label: {
+                    HStack {
+                        Text(block.name)
+                        if block.id == currentSelection?.id { Image(systemName: "checkmark") }
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(weekdayLabel(for: weekday))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(currentSelection?.name ?? "Rest")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(.tertiaryLabel).opacity(0.5)))
         }
+    }
+
+    private func assign(_ block: WorkoutBlock, to day: Int) {
+        var updated = assignments
+
+        for (existingDay, assigned) in updated where assigned.id == block.id {
+            updated.removeValue(forKey: existingDay)
+        }
+
+        updated[day] = block
+        assignments = updated
     }
 
     private func clampDays(_ days: Int) -> Int {
@@ -165,7 +169,7 @@ struct ScheduleView: View {
     }
 
     private func weekdayLabel(for weekday: Int) -> String {
-        let symbols = Calendar.current.weekdaySymbols
+        let symbols = Calendar.current.shortWeekdaySymbols
         if weekday >= 1 && weekday <= symbols.count {
             return symbols[weekday - 1]
         }
