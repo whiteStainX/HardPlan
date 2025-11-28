@@ -43,6 +43,20 @@ private final class MockProgressionService_AppState: ProgressionServiceProtocol 
     }
 }
 
+private final class MockProgramGenerator_AppState: ProgramGeneratorProtocol {
+    var generatedProgram: ActiveProgram?
+    private(set) var generateCalled = false
+
+    func generateProgram(for user: UserProfile) -> ActiveProgram {
+        generateCalled = true
+        if let generatedProgram {
+            return generatedProgram
+        }
+
+        return ActiveProgram(startDate: "", currentBlockPhase: .introductory)
+    }
+}
+
 private final class MockPersistenceController_AppState: JSONPersistenceController {
     var savedObject: (any Codable)?
     var savedFilename: String?
@@ -60,6 +74,7 @@ final class AppStateTests: XCTestCase {
     private var mockWorkoutRepo: MockWorkoutRepository_AppState!
     private var mockExerciseRepo: MockExerciseRepository_AppState!
     private var mockProgressionService: MockProgressionService_AppState!
+    private var mockProgramGenerator: MockProgramGenerator_AppState!
     private var mockPersistence: MockPersistenceController_AppState!
     private var sut: AppState!
 
@@ -71,13 +86,15 @@ final class AppStateTests: XCTestCase {
         mockWorkoutRepo = MockWorkoutRepository_AppState()
         mockExerciseRepo = MockExerciseRepository_AppState()
         mockProgressionService = MockProgressionService_AppState()
+        mockProgramGenerator = MockProgramGenerator_AppState()
         mockPersistence = MockPersistenceController_AppState()
-        
+
         sut = AppState(
             userRepository: mockUserRepo,
             workoutRepository: mockWorkoutRepo,
             exerciseRepository: mockExerciseRepo,
             progressionService: mockProgressionService,
+            programGenerator: mockProgramGenerator,
             persistenceController: mockPersistence
         )
     }
@@ -88,8 +105,26 @@ final class AppStateTests: XCTestCase {
         mockWorkoutRepo = nil
         mockExerciseRepo = nil
         mockProgressionService = nil
+        mockProgramGenerator = nil
         mockPersistence = nil
         super.tearDown()
+    }
+
+    func testOnboardUser_generatesProgramAndPersists() {
+        // GIVEN
+        let userProfile = UserProfile(name: "Tester", trainingAge: .novice, goal: .strength, onboardingCompleted: false)
+        let generatedProgram = ActiveProgram(startDate: "2024-01-01", currentBlockPhase: .introductory)
+        mockProgramGenerator.generatedProgram = generatedProgram
+
+        // WHEN
+        sut.onboardUser(profile: userProfile)
+
+        // THEN
+        XCTAssertEqual(mockUserRepo.savedProfile?.onboardingCompleted, true)
+        XCTAssertEqual(sut.activeProgram, generatedProgram)
+        XCTAssertTrue(mockProgramGenerator.generateCalled)
+        XCTAssertEqual(mockPersistence.savedFilename, "active_program.json")
+        XCTAssertNotNil(mockPersistence.savedObject as? ActiveProgram)
     }
 
     func testCompleteWorkout_UpdatesProgressionStateAndSchedule() {

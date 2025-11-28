@@ -18,6 +18,7 @@ final class AppState: ObservableObject {
     private let workoutRepository: WorkoutRepositoryProtocol
     private let exerciseRepository: ExerciseRepositoryProtocol
     private let progressionService: ProgressionServiceProtocol
+    private let programGenerator: ProgramGeneratorProtocol
     private let persistenceController: JSONPersistenceController
 
     private let activeProgramFilename = "active_program.json"
@@ -27,12 +28,14 @@ final class AppState: ObservableObject {
         workoutRepository: WorkoutRepositoryProtocol = DependencyContainer.shared.resolve(),
         exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve(),
         progressionService: ProgressionServiceProtocol = DependencyContainer.shared.resolve(),
+        programGenerator: ProgramGeneratorProtocol = DependencyContainer.shared.resolve(),
         persistenceController: JSONPersistenceController = DependencyContainer.shared.resolve()
     ) {
         self.userRepository = userRepository
         self.workoutRepository = workoutRepository
         self.exerciseRepository = exerciseRepository
         self.progressionService = progressionService
+        self.programGenerator = programGenerator
         self.persistenceController = persistenceController
         self.workoutLogs = []
         print("✅ AppState: Initialized.")
@@ -52,7 +55,7 @@ final class AppState: ObservableObject {
         userProfile = storedProfile
 
         if activeProgram == nil {
-            activeProgram = createPlaceholderProgram()
+            activeProgram = programGenerator.generateProgram(for: storedProfile)
             persistActiveProgram()
         }
     }
@@ -144,13 +147,5 @@ final class AppState: ObservableObject {
 
     private func loadActiveProgram() -> ActiveProgram? {
         persistenceController.load(from: activeProgramFilename)
-    }
-
-    private func createPlaceholderProgram() -> ActiveProgram {
-        let formatter = ISO8601DateFormatter()
-        return ActiveProgram(
-            startDate: formatter.string(from: Date()),
-            currentBlockPhase: .introductory
-        )
     }
 }
