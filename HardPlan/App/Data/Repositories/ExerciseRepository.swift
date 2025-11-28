@@ -38,11 +38,14 @@ struct ExerciseRepository: ExerciseRepositoryProtocol {
     }
 
     private func loadBuiltInExercises() -> [Exercise] {
-        guard let url = bundle.url(forResource: builtInResourceName, withExtension: "json") else {
-            return []
-        }
-
         do {
+            let resourceURL = bundle.url(forResource: builtInResourceName, withExtension: "json")
+                ?? bundle.resourceURL?.appendingPathComponent("\(builtInResourceName).json")
+
+            guard let url = resourceURL else {
+                return []
+            }
+
             let data = try Data(contentsOf: url)
             return try JSONDecoder().decode([Exercise].self, from: data)
         } catch {
