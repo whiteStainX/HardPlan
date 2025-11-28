@@ -20,7 +20,7 @@ final class DependencyContainer {
         }
     }
 
-    func resolve<Service>() -> Service {
+    nonisolated func resolve<Service>() -> Service {
         let key = ObjectIdentifier(Service.self)
 
         lock.lock()
@@ -33,7 +33,7 @@ final class DependencyContainer {
         return service
     }
 
-    func register<Service>(_ factory: @escaping () -> Service) {
+    nonisolated func register<Service>(_ factory: @escaping () -> Service) {
         let key = ObjectIdentifier(Service.self)
 
         lock.lock()
@@ -41,11 +41,11 @@ final class DependencyContainer {
         lock.unlock()
     }
 
-    func register<Service>(_ instance: Service) {
+    nonisolated func register<Service>(_ instance: Service) {
         register { instance }
     }
 
-    func registerSingleton<Service>(_ factory: @escaping () -> Service) {
+    nonisolated func registerSingleton<Service>(_ factory: @escaping () -> Service) {
         let key = ObjectIdentifier(Service.self)
         var cachedInstance: Service?
 
@@ -60,7 +60,7 @@ final class DependencyContainer {
         }
     }
 
-    func reset() {
+    nonisolated func reset() {
         lock.lock()
         registry.removeAll()
         lock.unlock()

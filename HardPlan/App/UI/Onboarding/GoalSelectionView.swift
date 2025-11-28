@@ -52,7 +52,7 @@ struct GoalSelectionView: View {
             HStack {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
@@ -63,7 +63,7 @@ struct GoalSelectionView: View {
                 Spacer()
                 if selectedGoal == goal {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                 }
             }
             .padding()

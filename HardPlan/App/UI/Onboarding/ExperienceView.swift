@@ -64,7 +64,7 @@ struct ExperienceView: View {
                 Spacer()
                 if selectedTrainingAge == trainingAge {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                 }
             }
             .padding()
