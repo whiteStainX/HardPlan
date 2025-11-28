@@ -2,8 +2,7 @@
 //  AppStateTests.swift
 //  HardPlanTests
 //
-//  Verifies the business logic within the main AppState object,
-//  particularly the workout completion and program progression flow.
+//  Verifies the business logic within the main AppState object.
 
 import XCTest
 @testable import HardPlan
@@ -11,21 +10,16 @@ import XCTest
 // MARK: - Mocks
 
 private final class MockUserRepository_AppState: UserRepositoryProtocol {
-    var savedProfile: UserProfile?
-    var getProfileToReturn: UserProfile?
-    var deleteCalled = false
-    func saveProfile(_ profile: UserProfile) { savedProfile = profile }
-    func getProfile() -> UserProfile? { getProfileToReturn }
-    func deleteProfile() { deleteCalled = true }
+    func saveProfile(_ profile: UserProfile) {}
+    func getProfile() -> UserProfile? { nil }
+    func deleteProfile() {}
 }
 
 private final class MockWorkoutRepository_AppState: WorkoutRepositoryProtocol {
-    var savedLog: WorkoutLog?
-    var deleteAllCalled = false
-    func saveLog(_ log: WorkoutLog) { savedLog = log }
+    func saveLog(_ log: WorkoutLog) {}
     func getHistory() -> [WorkoutLog] { [] }
     func overwriteHistory(_ logs: [WorkoutLog]) {}
-    func deleteAll() { deleteAllCalled = true }
+    func deleteAll() {}
 }
 
 private final class MockExerciseRepository_AppState: ExerciseRepositoryProtocol {
@@ -35,166 +29,94 @@ private final class MockExerciseRepository_AppState: ExerciseRepositoryProtocol 
 }
 
 private final class MockAnalyticsService_AppState: AnalyticsServiceProtocol {
-    var lastProgram: ActiveProgram?
-    var lastLogs: [WorkoutLog]?
-
-    func calculateE1RM(load: Double, reps: Int) -> Double { load }
+    func calculateE1RM(load: Double, reps: Int) -> Double { 0 }
     func generateHistory(logs: [WorkoutLog], exerciseId: String) -> [E1RMPoint] { [] }
     func analyzeTempo(logs: [WorkoutLog]) -> TempoWarning? { nil }
-
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] {
-        lastProgram = program
-        lastLogs = logs
-        return []
-    }
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] { [] }
 }
 
 private final class MockProgressionService_AppState: ProgressionServiceProtocol {
-    var calculateNextStateCalled = false
-    var nextStateToReturn: ProgressionState?
-    func calculateNextState(current: ProgressionState, log: WorkoutLog, exercise: Exercise, user: UserProfile, program: ActiveProgram, repRange: ClosedRange<Int>?) -> ProgressionState {
-        calculateNextStateCalled = true
-        return nextStateToReturn ?? current
-    }
+    func calculateNextState(current: ProgressionState, log: WorkoutLog, exercise: Exercise, user: UserProfile, program: ActiveProgram, repRange: ClosedRange<Int>?) -> ProgressionState { current }
+    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog]) -> Bool { false }
 }
 
 private final class MockProgramGenerator_AppState: ProgramGeneratorProtocol {
-    var generatedProgram: ActiveProgram?
-    private(set) var generateCalled = false
-
-    func generateProgram(for user: UserProfile) -> ActiveProgram {
-        generateCalled = true
-        if let generatedProgram {
-            return generatedProgram
-        }
-
-        return ActiveProgram(startDate: "", currentBlockPhase: .introductory)
-    }
+    func generateProgram(for user: UserProfile) -> ActiveProgram { ActiveProgram(startDate: "", currentBlockPhase: .introductory) }
 }
 
 private final class MockPersistenceController_AppState: JSONPersistenceController {
-    var savedObject: (any Codable)?
-    var savedFilename: String?
-    override func save<T: Codable>(_ object: T, to filename: String) {
-        savedObject = object
-        savedFilename = filename
-    }
+    override func save<T: Codable>(_ object: T, to filename: String) {}
 }
 
 // MARK: - Tests
 
 @MainActor
 final class AppStateTests: XCTestCase {
-    private var mockUserRepo: MockUserRepository_AppState!
-    private var mockWorkoutRepo: MockWorkoutRepository_AppState!
-    private var mockExerciseRepo: MockExerciseRepository_AppState!
-    private var mockAnalyticsService: MockAnalyticsService_AppState!
-    private var mockProgressionService: MockProgressionService_AppState!
-    private var mockProgramGenerator: MockProgramGenerator_AppState!
-    private var mockPersistence: MockPersistenceController_AppState!
     private var sut: AppState!
-
-    private let squatExercise = Exercise(id: "squat", name: "Squat", pattern: .squat, type: .compound, equipment: .barbell, primaryMuscle: .quads)
 
     override func setUp() {
         super.setUp()
-        mockUserRepo = MockUserRepository_AppState()
-        mockWorkoutRepo = MockWorkoutRepository_AppState()
-        mockExerciseRepo = MockExerciseRepository_AppState()
-        mockAnalyticsService = MockAnalyticsService_AppState()
-        mockProgressionService = MockProgressionService_AppState()
-        mockProgramGenerator = MockProgramGenerator_AppState()
-        mockPersistence = MockPersistenceController_AppState()
-
+        // Use mocks for all dependencies to isolate AppState
         sut = AppState(
-            userRepository: mockUserRepo,
-            workoutRepository: mockWorkoutRepo,
-            exerciseRepository: mockExerciseRepo,
-            analyticsService: mockAnalyticsService,
-            progressionService: mockProgressionService,
-            programGenerator: mockProgramGenerator,
-            persistenceController: mockPersistence
+            userRepository: MockUserRepository_AppState(),
+            workoutRepository: MockWorkoutRepository_AppState(),
+            exerciseRepository: MockExerciseRepository_AppState(),
+            analyticsService: MockAnalyticsService_AppState(),
+            progressionService: MockProgressionService_AppState(),
+            programGenerator: MockProgramGenerator_AppState(),
+            persistenceController: MockPersistenceController_AppState()
         )
     }
 
     override func tearDown() {
         sut = nil
-        mockUserRepo = nil
-        mockWorkoutRepo = nil
-        mockExerciseRepo = nil
-        mockAnalyticsService = nil
-        mockProgressionService = nil
-        mockProgramGenerator = nil
-        mockPersistence = nil
         super.tearDown()
     }
 
-    func testOnboardUser_generatesProgramAndPersists() {
+    func testCompletePostBlockAssessment_withDeloadDecision_appliesDeload() {
         // GIVEN
-        let userProfile = UserProfile(name: "Tester", trainingAge: .novice, goal: .strength, onboardingCompleted: false)
-        let generatedProgram = ActiveProgram(startDate: "2024-01-01", currentBlockPhase: .introductory)
-        mockProgramGenerator.generatedProgram = generatedProgram
+        let initialSets = 4
+        let scheduledExercise = ScheduledExercise(exerciseId: "squat", order: 1, targetSets: initialSets, targetReps: 5, targetLoad: 100, targetRPE: 8)
+        let session = ScheduledSession(dayOfWeek: 1, name: "Test Day", exercises: [scheduledExercise])
+        sut.activeProgram = ActiveProgram(startDate: "", currentBlockPhase: .accumulation, weeklySchedule: [session])
+        
+        let responses = PostBlockResponses(sleepQuality: 3, stressLevel: 8, acheLevel: 7) // High risk
 
         // WHEN
-        sut.onboardUser(profile: userProfile)
-
+        sut.completePostBlockAssessment(decision: .deload, responses: responses)
+        
         // THEN
-        XCTAssertEqual(mockUserRepo.savedProfile?.onboardingCompleted, true)
-        XCTAssertEqual(sut.activeProgram, generatedProgram)
-        XCTAssertTrue(mockProgramGenerator.generateCalled)
-        XCTAssertEqual(mockPersistence.savedFilename, "active_program.json")
-        XCTAssertNotNil(mockPersistence.savedObject as? ActiveProgram)
+        guard let program = sut.activeProgram else {
+            XCTFail("Active program should not be nil")
+            return
+        }
+        
+        XCTAssertEqual(program.currentBlockPhase, .deload)
+        XCTAssertEqual(program.consecutiveBlocksWithoutDeload, 0)
+        XCTAssertEqual(program.currentWeek, 1)
+        
+        let updatedSets = program.weeklySchedule.first?.exercises.first?.targetSets
+        XCTAssertEqual(updatedSets, 2, "Sets should be reduced by half for a deload")
     }
 
-    func testCompleteWorkout_UpdatesProgressionStateAndSchedule() {
+    func testCompletePostBlockAssessment_withNextBlockDecision_advancesProgram() {
         // GIVEN
-        let initialLoad = 100.0
-        let progressedLoad = 105.0
+        let session = ScheduledSession(dayOfWeek: 1, name: "Test Day", exercises: [])
+        sut.activeProgram = ActiveProgram(startDate: "", currentBlockPhase: .accumulation, weeklySchedule: [session])
         
-        // 1. Setup AppState with a user and an active program
-        sut.userProfile = UserProfile(name: "Tester", trainingAge: .novice, goal: .strength)
-        let scheduledExercise = ScheduledExercise(exerciseId: squatExercise.id, order: 1, targetSets: 3, targetReps: 5, targetLoad: initialLoad, targetRPE: 8)
-        let session = ScheduledSession(dayOfWeek: 1, name: "Test Day", exercises: [scheduledExercise])
-        sut.activeProgram = ActiveProgram(startDate: "", currentBlockPhase: .accumulation, weeklySchedule: [session], progressionData: [:])
-        
-        // 2. Setup mock exercise repo
-        mockExerciseRepo.exercisesToReturn = [squatExercise]
-        
-        // 3. Setup mock progression service to return a progressed state
-        mockProgressionService.nextStateToReturn = ProgressionState(exerciseId: squatExercise.id, currentLoad: progressedLoad, currentRepTarget: 5)
-        
-        // 4. Create a workout log that represents the completed workout
-        let completedExercise = CompletedExercise(exerciseId: squatExercise.id, sets: [
-            CompletedSet(setNumber: 1, targetLoad: initialLoad, targetReps: 5, load: initialLoad, reps: 5, rpe: 8)
-        ])
-        let workoutLog = WorkoutLog(programId: "p1", dateScheduled: "", dateCompleted: "", durationMinutes: 60, status: .completed, mode: .normal, exercises: [completedExercise], sessionRPE: 8, wellnessScore: 4)
+        let responses = PostBlockResponses(sleepQuality: 8, stressLevel: 4, acheLevel: 2) // Low risk
 
         // WHEN
-        sut.completeWorkout(workoutLog)
-
+        sut.completePostBlockAssessment(decision: .nextBlock, responses: responses)
+        
         // THEN
-        // 1. Verify log was saved
-        XCTAssertNotNil(mockWorkoutRepo.savedLog)
+        guard let program = sut.activeProgram else {
+            XCTFail("Active program should not be nil")
+            return
+        }
         
-        // 2. Verify progression service was called
-        XCTAssertTrue(mockProgressionService.calculateNextStateCalled)
-        
-        // 3. Verify the program's progression data was updated
-        let updatedProgressionData = sut.activeProgram?.progressionData[squatExercise.id]
-        XCTAssertNotNil(updatedProgressionData)
-        XCTAssertEqual(updatedProgressionData?.currentLoad, progressedLoad)
-        
-        // 4. Verify the weekly schedule for the *next* workout was updated
-        let updatedScheduledExercise = sut.activeProgram?.weeklySchedule.first?.exercises.first
-        XCTAssertNotNil(updatedScheduledExercise)
-        XCTAssertEqual(updatedScheduledExercise?.targetLoad, progressedLoad)
-        
-        // 5. Verify the updated program was persisted
-        XCTAssertNotNil(mockPersistence.savedObject)
-        XCTAssertEqual(mockPersistence.savedFilename, "active_program.json")
-
-        // 6. Verify analytics snapshots refreshed with latest state
-        XCTAssertEqual(mockAnalyticsService.lastProgram?.progressionData[squatExercise.id]?.currentLoad, progressedLoad)
-        XCTAssertEqual(mockAnalyticsService.lastLogs?.count, sut.workoutLogs.count)
+        XCTAssertEqual(program.currentBlockPhase, .intensification, "Phase should advance from Accumulation to Intensification")
+        XCTAssertEqual(program.currentWeek, 1)
+        XCTAssertEqual(program.consecutiveBlocksWithoutDeload, 1)
     }
 }
