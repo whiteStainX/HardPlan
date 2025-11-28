@@ -12,7 +12,7 @@ final class DependencyContainer {
     static let shared = DependencyContainer()
 
     private var registry: [ObjectIdentifier: () -> Any] = [:]
-    private let lock = NSLock()
+    private let lock = NSRecursiveLock()
 
     init(registerDefaults: Bool = true) {
         if registerDefaults {

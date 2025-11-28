@@ -11,13 +11,14 @@ import SwiftUI
 struct HardPlanApp: App {
     @StateObject private var appState = AppState()
 
+    init() {
+        print("✅ HardPlanApp: Initialized.")
+    }
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ContentView()
                 .environmentObject(appState)
-                .task {
-                    appState.loadData()
-                }
         }
     }
 }

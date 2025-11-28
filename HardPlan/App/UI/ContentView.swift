@@ -2,23 +2,30 @@
 //  ContentView.swift
 //  HardPlan
 //
-//  Created by HUANG SONG on 27/11/25.
+//  This is the root view of the application. It decides whether to show
+//  the onboarding flow or the main tab view.
 //
 
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var appState: AppState
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        ZStack {
+            if appState.userProfile == nil {
+                OnboardingView()
+            } else {
+                MainTabView()
+            }
         }
-        .padding()
+        .task {
+            appState.loadData()
+        }
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(AppState())
 }
