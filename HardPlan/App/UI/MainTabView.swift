@@ -63,42 +63,6 @@ private struct AnalyticsView: View {
     }
 }
 
-private struct SettingsView: View {
-    @EnvironmentObject private var appState: AppState
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                if let profile = appState.userProfile {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Current User")
-                            .font(.headline)
-                        Text("Name: \(profile.name)")
-                        Text("Goal: \(profile.goal.rawValue.capitalized)")
-                        Text("Training Age: \(profile.trainingAge.rawValue.capitalized)")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    Text("No user profile found")
-                        .foregroundStyle(.secondary)
-                }
-
-                Button(role: .destructive) {
-                    appState.resetApp()
-                } label: {
-                    Label("Reset App", systemImage: "arrow.counterclockwise")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Settings")
-        }
-    }
-}
-
 #Preview {
     MainTabView()
         .environmentObject(AppState())

@@ -79,5 +79,6 @@ final class DependencyContainer {
         registerSingleton { SubstitutionService() as SubstitutionServiceProtocol }
         registerSingleton { AnalyticsService() as AnalyticsServiceProtocol }
         registerSingleton { ProgramGenerator(exerciseRepository: self.resolve()) as ProgramGeneratorProtocol }
+        registerSingleton { ExportService() as ExportServiceProtocol }
     }
 }
