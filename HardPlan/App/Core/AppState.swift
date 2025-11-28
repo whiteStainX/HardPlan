@@ -16,6 +16,8 @@ final class AppState: ObservableObject {
 
     private let userRepository: UserRepositoryProtocol
     private let workoutRepository: WorkoutRepositoryProtocol
+    private let exerciseRepository: ExerciseRepositoryProtocol
+    private let progressionService: ProgressionServiceProtocol
     private let persistenceController: JSONPersistenceController
 
     private let activeProgramFilename = "active_program.json"
@@ -23,10 +25,14 @@ final class AppState: ObservableObject {
     init(
         userRepository: UserRepositoryProtocol = DependencyContainer.shared.resolve(),
         workoutRepository: WorkoutRepositoryProtocol = DependencyContainer.shared.resolve(),
+        exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve(),
+        progressionService: ProgressionServiceProtocol = DependencyContainer.shared.resolve(),
         persistenceController: JSONPersistenceController = DependencyContainer.shared.resolve()
     ) {
         self.userRepository = userRepository
         self.workoutRepository = workoutRepository
+        self.exerciseRepository = exerciseRepository
+        self.progressionService = progressionService
         self.persistenceController = persistenceController
         self.workoutLogs = []
         print("✅ AppState: Initialized.")
@@ -69,6 +75,71 @@ final class AppState: ObservableObject {
     func persistActiveProgram() {
         guard let activeProgram else { return }
         persistenceController.save(activeProgram, to: activeProgramFilename)
+    }
+
+    func completeWorkout(_ log: WorkoutLog) {
+        appendWorkoutLog(log)
+        guard var program = activeProgram, let userProfile else { return }
+
+        let exerciseLookup = Dictionary(uniqueKeysWithValues: exerciseRepository
+            .getAllExercises()
+            .map { ($0.id, $0) })
+
+        for exerciseLog in log.exercises {
+            guard let exercise = exerciseLookup[exerciseLog.exerciseId] else { continue }
+            let repRange = repRange(from: exerciseLog)
+            let currentState = program.progressionData[exerciseLog.exerciseId] ?? seedState(from: exerciseLog)
+            let nextState = progressionService.calculateNextState(
+                current: currentState,
+                log: log,
+                exercise: exercise,
+                user: userProfile,
+                program: program,
+                repRange: repRange
+            )
+
+            program.progressionData[exerciseLog.exerciseId] = nextState
+        }
+
+        program.weeklySchedule = program.weeklySchedule.map { session in
+            var updatedSession = session
+            for index in updatedSession.exercises.indices {
+                let exerciseId = updatedSession.exercises[index].exerciseId
+                if let state = program.progressionData[exerciseId] {
+                    updatedSession.exercises[index].targetLoad = state.currentLoad
+                    if state.currentRepTarget > 0 {
+                        updatedSession.exercises[index].targetReps = state.currentRepTarget
+                    }
+                }
+            }
+            return updatedSession
+        }
+
+        activeProgram = program
+        persistActiveProgram()
+    }
+
+    private func repRange(from exerciseLog: CompletedExercise) -> ClosedRange<Int>? {
+        let reps = exerciseLog.sets.map(\.targetReps)
+        guard let min = reps.min(), let max = reps.max(), min > 0, max > 0 else {
+            return nil
+        }
+
+        return min...max
+    }
+
+    private func seedState(from exerciseLog: CompletedExercise) -> ProgressionState {
+        let targetReps = exerciseLog.sets.map(\.targetReps).max() ?? 0
+        let lastLoad = exerciseLog.sets.last?.load ?? 0
+        return ProgressionState(
+            exerciseId: exerciseLog.exerciseId,
+            currentLoad: lastLoad,
+            consecutiveFails: 0,
+            resetCount: 0,
+            recentRPEs: [],
+            baseLoad: lastLoad,
+            currentRepTarget: targetReps
+        )
     }
 
     private func loadActiveProgram() -> ActiveProgram? {
