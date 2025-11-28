@@ -17,13 +17,13 @@ enum MovementPattern: String, Codable, CaseIterable {
     case isolation = "Isolation"
 }
 
-enum ExerciseType: String, Codable {
+enum ExerciseType: String, Codable, CaseIterable {
     case compound = "Compound"
     case isolation = "Isolation"
     case machine = "Machine"
 }
 
-enum EquipmentType: String, Codable {
+enum EquipmentType: String, Codable, CaseIterable {
     case barbell = "Barbell"
     case dumbbell = "Dumbbell"
     case machine = "Machine"

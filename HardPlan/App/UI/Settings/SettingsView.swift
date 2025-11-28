@@ -32,6 +32,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 profileSection
+                exerciseSection
                 dataManagementSection
             }
             .navigationTitle("Settings")
@@ -53,6 +54,20 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
+        }
+    }
+
+    private var exerciseSection: some View {
+        Section("Exercises") {
+            NavigationLink {
+                ExerciseListView()
+            } label: {
+                Label("Custom Exercises", systemImage: "plus.rectangle.on.rectangle")
+            }
+
+            Text("Add your own movements to use across workouts and exports.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
