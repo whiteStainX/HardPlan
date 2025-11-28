@@ -15,15 +15,27 @@ protocol ProgressionServiceProtocol {
         program: ActiveProgram,
         repRange: ClosedRange<Int>?
     ) -> ProgressionState
+
+    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog]) -> Bool
 }
 
 struct ProgressionService: ProgressionServiceProtocol {
     private let defaultRepRange: ClosedRange<Int>
     private let dateProvider: () -> Date
+    private let isoFormatter: ISO8601DateFormatter
+    private let dateOnlyFormatter: ISO8601DateFormatter
 
     init(defaultRepRange: ClosedRange<Int> = 8...12, dateProvider: @escaping () -> Date = Date.init) {
         self.defaultRepRange = defaultRepRange
         self.dateProvider = dateProvider
+
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        self.isoFormatter = isoFormatter
+
+        let dateOnlyFormatter = ISO8601DateFormatter()
+        dateOnlyFormatter.formatOptions = [.withFullDate]
+        self.dateOnlyFormatter = dateOnlyFormatter
     }
 
     func calculateNextState(
@@ -36,6 +48,17 @@ struct ProgressionService: ProgressionServiceProtocol {
     ) -> ProgressionState {
         let strategy = selectStrategy(for: exercise, user: user, program: program, repRange: repRange)
         return strategy.calculateNext(current: current, log: log, exercise: exercise)
+    }
+
+    func shouldTriggerPostBlockAssessment(program: ActiveProgram, logs: [WorkoutLog]) -> Bool {
+        guard let startDate = parseDate(program.startDate) else { return false }
+        guard let latestLogDate = logs.compactMap({ parseDate($0.dateCompleted) }).max() else { return false }
+
+        let calendar = Calendar(identifier: .gregorian)
+        let weekDelta = calendar.dateComponents([.weekOfYear], from: startDate, to: latestLogDate).weekOfYear ?? 0
+        let completedWeeks = max(program.currentWeek, weekDelta + 1)
+
+        return completedWeeks >= 4 && program.currentBlockPhase != .deload
     }
 
     private func selectStrategy(
@@ -91,5 +114,13 @@ struct ProgressionService: ProgressionServiceProtocol {
                 minPlateIncrement: user.minPlateIncrement
             )
         }
+    }
+
+    private func parseDate(_ string: String) -> Date? {
+        if let date = isoFormatter.date(from: string) {
+            return date
+        }
+
+        return dateOnlyFormatter.date(from: string)
     }
 }

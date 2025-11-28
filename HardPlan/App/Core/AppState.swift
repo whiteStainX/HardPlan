@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     @Published var activeProgram: ActiveProgram?
     @Published var workoutLogs: [WorkoutLog]
     @Published var analyticsSnapshots: [AnalyticsSnapshot]
+    @Published var postBlockAssessmentDue: Bool
 
     private let userRepository: UserRepositoryProtocol
     private let workoutRepository: WorkoutRepositoryProtocol
@@ -22,6 +23,10 @@ final class AppState: ObservableObject {
     private let progressionService: ProgressionServiceProtocol
     private let programGenerator: ProgramGeneratorProtocol
     private let persistenceController: JSONPersistenceController
+
+    private let isoFormatter: ISO8601DateFormatter
+    private let dateOnlyFormatter: ISO8601DateFormatter
+    private let calendar: Calendar
 
     private let activeProgramFilename = "active_program.json"
 
@@ -43,6 +48,17 @@ final class AppState: ObservableObject {
         self.persistenceController = persistenceController
         self.workoutLogs = []
         self.analyticsSnapshots = []
+        self.postBlockAssessmentDue = false
+
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        self.isoFormatter = isoFormatter
+
+        let dateOnlyFormatter = ISO8601DateFormatter()
+        dateOnlyFormatter.formatOptions = [.withFullDate]
+        self.dateOnlyFormatter = dateOnlyFormatter
+
+        self.calendar = Calendar(identifier: .gregorian)
         print("✅ AppState: Initialized.")
     }
 
@@ -51,6 +67,7 @@ final class AppState: ObservableObject {
         activeProgram = loadActiveProgram()
         workoutLogs = workoutRepository.getHistory()
         refreshAnalytics()
+        refreshPostBlockAssessmentStatus()
     }
 
     func onboardUser(profile: UserProfile) {
@@ -64,6 +81,8 @@ final class AppState: ObservableObject {
             activeProgram = programGenerator.generateProgram(for: storedProfile)
             persistActiveProgram()
         }
+
+        refreshPostBlockAssessmentStatus()
     }
 
     func resetApp() {
@@ -74,12 +93,15 @@ final class AppState: ObservableObject {
         userProfile = nil
         activeProgram = nil
         workoutLogs = []
+        analyticsSnapshots = []
+        postBlockAssessmentDue = false
     }
 
     func appendWorkoutLog(_ log: WorkoutLog) {
         workoutLogs.append(log)
         workoutRepository.saveLog(log)
         refreshAnalytics()
+        refreshPostBlockAssessmentStatus()
     }
 
     func persistActiveProgram() {
@@ -125,9 +147,28 @@ final class AppState: ObservableObject {
             return updatedSession
         }
 
+        syncProgramWeek(using: workoutLogs, program: &program)
+
         activeProgram = program
         persistActiveProgram()
         refreshAnalytics()
+        refreshPostBlockAssessmentStatus()
+    }
+
+    func completePostBlockAssessment(decision: PostBlockDecision, responses: PostBlockResponses) {
+        guard var program = activeProgram else { return }
+
+        switch decision {
+        case .deload:
+            program = applyDeloadAdjustments(to: program)
+        case .nextBlock:
+            program = advanceToNextBlock(from: program, responses: responses)
+        }
+
+        activeProgram = program
+        persistActiveProgram()
+        refreshAnalytics()
+        refreshPostBlockAssessmentStatus()
     }
 
     private func refreshAnalytics() {
@@ -137,6 +178,88 @@ final class AppState: ObservableObject {
         }
 
         analyticsSnapshots = analyticsService.updateSnapshots(program: activeProgram, logs: workoutLogs)
+    }
+
+    private func refreshPostBlockAssessmentStatus() {
+        guard let program = activeProgram else {
+            postBlockAssessmentDue = false
+            return
+        }
+
+        postBlockAssessmentDue = progressionService.shouldTriggerPostBlockAssessment(program: program, logs: workoutLogs)
+    }
+
+    private func syncProgramWeek(using logs: [WorkoutLog], program: inout ActiveProgram) {
+        guard let startDate = parseDate(program.startDate) else { return }
+        let latest = logs.compactMap { parseDate($0.dateCompleted) }.max() ?? startDate
+
+        let weekDelta = calendar.dateComponents([.weekOfYear], from: startDate, to: latest).weekOfYear ?? 0
+        program.currentWeek = max(1, weekDelta + 1)
+    }
+
+    private func applyDeloadAdjustments(to program: ActiveProgram) -> ActiveProgram {
+        var updated = program
+        updated.currentBlockPhase = .deload
+        updated.consecutiveBlocksWithoutDeload = 0
+        updated.currentWeek = 1
+        updated.startDate = isoFormatter.string(from: Date())
+
+        updated.weeklySchedule = program.weeklySchedule.map { session in
+            var session = session
+            session.exercises = session.exercises.map { exercise in
+                var exercise = exercise
+                exercise.targetSets = max(1, Int(round(Double(exercise.targetSets) * 0.5)))
+                exercise.targetRPE = max(6.0, exercise.targetRPE - 1.0)
+                return exercise
+            }
+            return session
+        }
+
+        return updated
+    }
+
+    private func advanceToNextBlock(from program: ActiveProgram, responses: PostBlockResponses) -> ActiveProgram {
+        var updated = program
+        updated.currentBlockPhase = nextPhase(after: program.currentBlockPhase)
+        updated.consecutiveBlocksWithoutDeload += program.currentBlockPhase == .deload ? 0 : 1
+        updated.currentWeek = 1
+        updated.startDate = isoFormatter.string(from: Date())
+
+        let fatiguePenalty = responses.recoveryRiskScore > 1 ? 0.9 : 1.0
+
+        updated.weeklySchedule = program.weeklySchedule.map { session in
+            var session = session
+            session.exercises = session.exercises.map { exercise in
+                var exercise = exercise
+                exercise.targetSets = max(2, Int(round(Double(exercise.targetSets) * fatiguePenalty)))
+                exercise.targetRPE = min(9.5, exercise.targetRPE + 0.25)
+                return exercise
+            }
+            return session
+        }
+
+        return updated
+    }
+
+    private func nextPhase(after current: BlockPhase) -> BlockPhase {
+        switch current {
+        case .introductory:
+            return .accumulation
+        case .accumulation:
+            return .intensification
+        case .intensification:
+            return .realization
+        case .realization, .deload:
+            return .accumulation
+        }
+    }
+
+    private func parseDate(_ string: String) -> Date? {
+        if let date = isoFormatter.date(from: string) {
+            return date
+        }
+
+        return dateOnlyFormatter.date(from: string)
     }
 
     private func repRange(from exerciseLog: CompletedExercise) -> ClosedRange<Int>? {

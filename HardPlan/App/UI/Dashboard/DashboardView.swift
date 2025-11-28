@@ -5,11 +5,15 @@ struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DashboardViewModel()
     @State private var activeSession: ScheduledSession?
+    @State private var showPostBlockAssessment = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    if appState.postBlockAssessmentDue {
+                        assessmentCard
+                    }
                     adherenceSection
                     volumeSection
                     nextSessionSection
@@ -22,6 +26,10 @@ struct DashboardView: View {
                 WorkoutSessionView(session: session)
                     .environmentObject(appState)
             }
+            .sheet(isPresented: $showPostBlockAssessment) {
+                PostBlockAssessmentView()
+                    .environmentObject(appState)
+            }
         }
         .onAppear {
             viewModel.refresh(from: appState)
@@ -32,6 +40,33 @@ struct DashboardView: View {
         .onChange(of: appState.workoutLogs) { _ in
             viewModel.refresh(from: appState)
         }
+    }
+
+    private var assessmentCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Post-Block Assessment")
+                .font(.headline)
+            Text("You’ve wrapped four weeks. Complete a quick check-in to decide between a deload or the next block.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button {
+                showPostBlockAssessment = true
+            } label: {
+                HStack {
+                    Text("Start Assessment")
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .font(.headline)
+                .padding()
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private var adherenceSection: some View {
