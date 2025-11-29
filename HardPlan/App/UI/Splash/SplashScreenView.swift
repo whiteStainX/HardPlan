@@ -37,10 +37,14 @@ struct SplashScreenView: View {
 
                 if showAsciiArt {
                     if let art = asciiArt {
-                        Text(art)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.orange)
-                            .transition(.opacity.animation(.easeInOut(duration: 1.0)))
+                        HStack {
+                            Spacer()
+                            Text(art)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.orange)
+                                .transition(.opacity.animation(.easeInOut(duration: 1.0)))
+                            Spacer()
+                        }
                     }
                 }
                 
