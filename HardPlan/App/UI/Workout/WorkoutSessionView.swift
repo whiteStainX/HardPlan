@@ -16,6 +16,9 @@ struct WorkoutSessionView: View {
     @State private var toastMessage: String?
     @State private var completedExercises: [CompletedExercise] = []
     @State private var showingSummary = false
+    @State private var showingExercisePicker = false
+    @State private var exerciseSearchText = ""
+    @State private var exerciseToDelete: ExerciseEntry?
 
     init(session: ScheduledSession) {
         _viewModel = StateObject(wrappedValue: WorkoutSessionViewModel(session: session))
@@ -25,6 +28,13 @@ struct WorkoutSessionView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 sessionHeader
+
+                Button { showingExercisePicker = true } label: {
+                    Label("Add Exercise", systemImage: "plus.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
 
                 ForEach($viewModel.exerciseEntries) { $entry in
                     exerciseCard(for: $entry)
@@ -137,6 +147,36 @@ struct WorkoutSessionView: View {
                 .environmentObject(appState)
             }
         }
+        .sheet(isPresented: $showingExercisePicker) {
+            ExercisePickerSheet(
+                searchText: $exerciseSearchText,
+                exercises: viewModel.exerciseOptions,
+                onSelect: { exercise in
+                    viewModel.addExercise(with: exercise.id)
+                    showingExercisePicker = false
+                },
+                dismiss: {
+                    showingExercisePicker = false
+                }
+            )
+        }
+        .alert("Remove Exercise?", isPresented: Binding(
+            get: { exerciseToDelete != nil },
+            set: { newValue in
+                if !newValue { exerciseToDelete = nil }
+            }
+        )) {
+            Button("Delete", role: .destructive) {
+                if let exerciseToDelete {
+                    viewModel.removeExercise(exerciseToDelete.id)
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                exerciseToDelete = nil
+            }
+        } message: {
+            Text("This will remove the exercise and any logged sets from this workout.")
+        }
     }
 
     private var sessionHeader: some View {
@@ -176,9 +216,35 @@ struct WorkoutSessionView: View {
             }
 
             ForEach(entry.sets) { $set in
-                SetRowView(set: $set) {
-                    completeSet(exerciseId: entry.id, setId: set.id, exerciseKey: entry.wrappedValue.scheduled.exerciseId)
+                SetRowView(
+                    set: $set,
+                    completeAction: {
+                        completeSet(exerciseId: entry.id, setId: set.id, exerciseKey: entry.wrappedValue.scheduled.exerciseId)
+                    },
+                    removeAction: {
+                        viewModel.removeSet(exerciseId: entry.id, setId: set.id)
+                    }
+                )
+            }
+
+            HStack {
+                Button {
+                    viewModel.addSet(to: entry.id)
+                } label: {
+                    Label("Add Set", systemImage: "plus")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.bordered)
+
+                Button(role: .destructive) {
+                    exerciseToDelete = entry.wrappedValue
+                } label: {
+                    Label("Remove Exercise", systemImage: "trash")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding()
@@ -250,6 +316,7 @@ struct WorkoutSessionView: View {
 private struct SetRowView: View {
     @Binding var set: EditableSet
     var completeAction: () -> Void
+    var removeAction: () -> Void
 
     private var targetDescription: String {
         "Target: \(Int(set.targetReps)) reps @ \(Int(set.targetLoad))"
@@ -264,6 +331,11 @@ private struct SetRowView: View {
                 Text(targetDescription)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Button(action: removeAction) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
             }
 
             HStack(spacing: 12) {
@@ -308,6 +380,45 @@ private struct SetRowView: View {
         .padding(12)
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct ExercisePickerSheet: View {
+    @Binding var searchText: String
+    let exercises: [Exercise]
+    var onSelect: (Exercise) -> Void
+    var dismiss: () -> Void
+
+    private var filteredExercises: [Exercise] {
+        guard !searchText.isEmpty else { return exercises }
+        return exercises.filter { exercise in
+            exercise.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(filteredExercises) { exercise in
+                Button {
+                    onSelect(exercise)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(exercise.name)
+                            .font(.headline)
+                        Text(exercise.type == .compound ? "Compound" : "Accessory")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .searchable(text: $searchText)
+            .navigationTitle("Add Exercise")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: dismiss)
+                }
+            }
+        }
     }
 }
 
