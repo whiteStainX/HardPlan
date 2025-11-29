@@ -2,6 +2,7 @@
   {
     "id": "squat_back_barbell",
     "name": "Barbell Back Squat",
+    "shortName": "Squat",
     "pattern": "Squat",
     "type": "Compound",
     "equipment": "Barbell",
@@ -19,6 +20,7 @@
   {
     "id": "bench_press_barbell",
     "name": "Barbell Bench Press",
+    "shortName": "Bench",
     "pattern": "Push_Horizontal",
     "type": "Compound",
     "equipment": "Barbell",
@@ -35,6 +37,7 @@
   {
     "id": "deadlift_conventional",
     "name": "Conventional Deadlift",
+    "shortName": "Deadlift",
     "pattern": "Hinge",
     "type": "Compound",
     "equipment": "Barbell",
@@ -52,6 +55,7 @@
   {
     "id": "overhead_press_barbell",
     "name": "Barbell Overhead Press",
+    "shortName": "OHP",
     "pattern": "Push_Vertical",
     "type": "Compound",
     "equipment": "Barbell",
