@@ -7,23 +7,20 @@ struct SplashScreenView: View {
     Booting HardPlan v1.0...
     [MEM] 256/256 memory blocks checked.
     [CPU] Calibrating core frequencies... Done.
-    [CPU0] 3.2 GHz, [CPU1] 3.2 GHz, [CPU2] 2.8 GHz
-    [NET] Starting network services... DHCP OK
+    [NET] Initializing network services... OK.
     [DATA] Mounting user partition...
-    [DATA] Verifying data integrity...
-    [AUTH] Verifying user credentials...
-    [HPLAN] Loading HardPlan v1.0 Kernel...
-    [HPLAN] Initializing strength protocols...
-    [HPLAN] Parsing exercise database...
-    [HPLAN] Calibrating volume equator...
+    [HPLAN] Loading Strength Protocols...
+    [HPLAN] Parsing Exercise Database...
+    [HPLAN] Calibrating Volume Equator...
     [HPLAN] Assembling Mesocycle...
-    [HPLAN] Finalizing Program...
     
-    Welcome, Athlete.
+    Welcome, Comrade.
     """
     
     @State private var displayedText = ""
     @State private var currentIndex = 0
+    @State private var asciiArt: String?
+    @State private var showAsciiArt = false
     
     // A single, fast timer to create the typewriter effect
     private let timer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
@@ -32,22 +29,48 @@ struct SplashScreenView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            Text(displayedText + "█") // Append a cursor character
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundStyle(.green)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding()
-                .lineLimit(nil) // Ensure text wraps
+            VStack(alignment: .leading) {
+                Text(displayedText + (showAsciiArt ? "" : "█")) // Show cursor only during typing
+                    .font(.system(size: 14, design: .monospaced))
+                    .foregroundStyle(.green)
+                    .lineLimit(nil)
+
+                if showAsciiArt {
+                    if let art = asciiArt {
+                        Text(art)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.orange)
+                            .transition(.opacity.animation(.easeInOut(duration: 1.0)))
+                    }
+                }
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding()
         }
+        .onAppear(perform: loadAsciiArt)
         .onReceive(timer) { _ in
             guard currentIndex < fullLogText.count else {
-                timer.upstream.connect().cancel() // Stop the timer when done
+                // Typing is finished
+                timer.upstream.connect().cancel()
+                // Trigger the ASCII art to fade in
+                withAnimation {
+                    showAsciiArt = true
+                }
                 return
             }
             
             let index = fullLogText.index(fullLogText.startIndex, offsetBy: currentIndex)
             displayedText.append(fullLogText[index])
             currentIndex += 1
+        }
+    }
+
+    private func loadAsciiArt() {
+        if let url = Bundle.main.url(forResource: "logo", withExtension: "txt"),
+           let art = try? String(contentsOf: url) {
+            self.asciiArt = art
         }
     }
 }
