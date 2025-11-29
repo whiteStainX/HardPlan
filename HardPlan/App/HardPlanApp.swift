@@ -23,7 +23,7 @@ struct HardPlanApp: App {
                 SplashScreenView()
                     .onAppear {
                         // Increased delay to let the full animation play out
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             withAnimation(.easeOut(duration: 0.5)) {
                                 isLoading = false
                                 
