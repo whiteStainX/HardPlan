@@ -10,15 +10,24 @@ import SwiftUI
 @main
 struct HardPlanApp: App {
     @StateObject private var appState = AppState()
-
-    init() {
-        print("✅ HardPlanApp: Initialized.")
-    }
+    @State private var isLoading = true
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(appState)
+            if isLoading {
+                SplashScreenView()
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            withAnimation(.easeOut(duration: 0.5)) {
+                                isLoading = false
+                            }
+                        }
+                    }
+            } else {
+                ContentView()
+                    .environmentObject(appState)
+                    .onAppear(perform: appState.loadData)
+            }
         }
     }
 }
