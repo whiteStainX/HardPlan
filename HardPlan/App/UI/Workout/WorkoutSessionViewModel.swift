@@ -3,7 +3,7 @@ import Combine
 
 struct EditableSet: Identifiable, Equatable {
     let id: UUID
-    let setNumber: Int
+    var setNumber: Int
     let targetLoad: Double
     let targetReps: Int
 
@@ -157,6 +157,63 @@ final class WorkoutSessionViewModel: ObservableObject {
         toastMessage = nil
     }
 
+    var exerciseOptions: [Exercise] {
+        allExercises.sorted { $0.name < $1.name }
+    }
+
+    func addExercise(with exerciseId: String) {
+        guard let exercise = exerciseLookup[exerciseId] else { return }
+
+        let nextOrder = (session.exercises.map { $0.order }.max() ?? -1) + 1
+        let newExercise = ScheduledExercise(
+            exerciseId: exercise.id,
+            order: nextOrder,
+            targetSets: 3,
+            targetReps: 8,
+            targetLoad: 0,
+            targetRPE: 7.5
+        )
+
+        session.exercises.append(newExercise)
+        originalSession.exercises.append(newExercise)
+        rebuildEntries(from: session, preserving: exerciseEntries)
+    }
+
+    func removeExercise(_ exerciseId: UUID) {
+        session.exercises.removeAll { $0.id == exerciseId }
+        originalSession.exercises.removeAll { $0.id == exerciseId }
+        exerciseEntries.removeAll { $0.id == exerciseId }
+
+        normalizeExerciseOrder()
+    }
+
+    func addSet(to exerciseId: UUID) {
+        guard let index = exerciseEntries.firstIndex(where: { $0.id == exerciseId }) else { return }
+
+        let nextNumber = (exerciseEntries[index].sets.map { $0.setNumber }.max() ?? 0) + 1
+        let scheduled = exerciseEntries[index].scheduled
+
+        let newSet = EditableSet(
+            setNumber: nextNumber,
+            targetLoad: scheduled.targetLoad,
+            targetReps: scheduled.targetReps,
+            load: scheduled.targetLoad,
+            reps: scheduled.targetReps,
+            rpe: scheduled.targetRPE
+        )
+
+        exerciseEntries[index].sets.append(newSet)
+        syncTargetSets(for: exerciseId)
+    }
+
+    func removeSet(exerciseId: UUID, setId: UUID) {
+        guard let exerciseIndex = exerciseEntries.firstIndex(where: { $0.id == exerciseId }) else { return }
+
+        exerciseEntries[exerciseIndex].sets.removeAll { $0.id == setId }
+        renumberSets(for: exerciseIndex)
+        syncTargetSets(for: exerciseId)
+    }
+
     private func rebuildEntries(from session: ScheduledSession, preserving previous: [ExerciseEntry]) {
         let previousLookup = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
 
@@ -227,6 +284,48 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func roundToIncrement(_ value: Double, increment: Double) -> Double {
         guard increment > 0 else { return value }
         return (value / increment).rounded() * increment
+    }
+
+    private func normalizeExerciseOrder() {
+        session.exercises = session.exercises
+            .sorted { $0.order < $1.order }
+            .enumerated()
+            .map { index, exercise in
+                var updated = exercise
+                updated.order = index
+                return updated
+            }
+
+        originalSession.exercises = originalSession.exercises
+            .sorted { $0.order < $1.order }
+            .enumerated()
+            .map { index, exercise in
+                var updated = exercise
+                updated.order = index
+                return updated
+            }
+
+        rebuildEntries(from: session, preserving: exerciseEntries)
+    }
+
+    private func syncTargetSets(for exerciseId: UUID) {
+        guard let entry = exerciseEntries.first(where: { $0.id == exerciseId }) else { return }
+        let setCount = entry.sets.count
+
+        if let sessionIndex = session.exercises.firstIndex(where: { $0.id == exerciseId }) {
+            session.exercises[sessionIndex].targetSets = setCount
+        }
+
+        if let originalIndex = originalSession.exercises.firstIndex(where: { $0.id == exerciseId }) {
+            originalSession.exercises[originalIndex].targetSets = setCount
+        }
+    }
+
+    private func renumberSets(for exerciseIndex: Int) {
+        guard exerciseEntries.indices.contains(exerciseIndex) else { return }
+        for setIndex in exerciseEntries[exerciseIndex].sets.indices {
+            exerciseEntries[exerciseIndex].sets[setIndex].setNumber = setIndex + 1
+        }
     }
 
     func hasCompletedSets() -> Bool {
