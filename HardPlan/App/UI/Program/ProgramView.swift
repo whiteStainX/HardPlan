@@ -4,6 +4,9 @@ import Combine
 struct ProgramView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = ProgramViewModel()
+    @State private var isEditing = false
+    @State private var editingDraft: ProgramSessionDraft?
+    @State private var showEditor = false
 
     var body: some View {
         NavigationStack {
@@ -16,6 +19,40 @@ struct ProgramView: View {
                     .background(Color(.systemGroupedBackground))
                 } else {
                     List {
+                        if !viewModel.validationIssues.isEmpty {
+                            Section("Alerts") {
+                                ForEach(viewModel.validationIssues) { issue in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(issue.message)
+                                            .font(.subheadline)
+                                            .foregroundStyle(issue.severity == .error ? .red : .orange)
+                                        Text("Days: " + issue.affectedDays.map(viewModel.shortDayLabel).joined(separator: ", "))
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                        }
+
+                        if !viewModel.corrections.isEmpty {
+                            Section("Suggestions") {
+                                ForEach(viewModel.corrections) { correction in
+                                    Button {
+                                        viewModel.apply(correction: correction, appState: appState)
+                                    } label: {
+                                        HStack(alignment: .top) {
+                                            Image(systemName: "lightbulb")
+                                                .foregroundStyle(.yellow)
+                                            Text(correction.description)
+                                                .multilineTextAlignment(.leading)
+                                                .foregroundStyle(.primary)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         ForEach(orderedWeekdays, id: \.self) { weekday in
                             dayRow(for: weekday)
                         }
@@ -24,12 +61,43 @@ struct ProgramView: View {
                 }
             }
             .navigationTitle("Program")
+            .toolbar {
+                if !viewModel.sessions.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(isEditing ? "Done" : "Edit") {
+                            withAnimation {
+                                isEditing.toggle()
+                            }
+                        }
+                    }
+                }
+            }
         }
         .onAppear {
             viewModel.refresh(program: appState.activeProgram)
+            viewModel.evaluate(program: appState.activeProgram)
         }
         .onChange(of: appState.activeProgram) { newValue in
             viewModel.refresh(program: newValue)
+            viewModel.evaluate(program: newValue)
+        }
+        .sheet(isPresented: $showEditor) {
+            if let _ = editingDraft {
+                ProgramSessionEditor(
+                    draft: Binding(
+                        get: { editingDraft ?? ProgramSessionDraft(dayOfWeek: startWeekday, name: "Session", exercises: []) },
+                        set: { editingDraft = $0 }
+                    ),
+                    exerciseOptions: viewModel.exerciseOptions,
+                    calendar: viewModel.calendar
+                ) {
+                    if let draft = editingDraft, let result = viewModel.save(draft: draft, appState: appState) {
+                        viewModel.validationIssues = result.issues
+                        editingDraft = nil
+                        showEditor = false
+                    }
+                }
+            }
         }
     }
 
@@ -64,9 +132,7 @@ struct ProgramView: View {
         let label = viewModel.shortDayLabel(for: weekday)
 
         if let session = viewModel.session(for: weekday) {
-            NavigationLink {
-                ProgramSessionDetailView(session: session)
-            } label: {
+            let row = {
                 HStack(spacing: 12) {
                     dayBadge(text: label)
 
@@ -79,11 +145,38 @@ struct ProgramView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(Color(.tertiaryLabel))
-                        .font(.footnote)
+
+                    if isEditing {
+                        Button {
+                            editingDraft = viewModel.makeDraft(for: weekday)
+                            showEditor = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(Color(.tertiaryLabel))
+                            .font(.footnote)
+                    }
                 }
                 .padding(.vertical, 6)
+            }
+
+            if isEditing {
+                row()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        editingDraft = viewModel.makeDraft(for: weekday)
+                        showEditor = true
+                    }
+            } else {
+                NavigationLink {
+                    ProgramSessionDetailView(session: session)
+                } label: {
+                    row()
+                }
             }
         } else {
             HStack(spacing: 12) {
@@ -92,6 +185,15 @@ struct ProgramView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
+                if isEditing {
+                    Button {
+                        editingDraft = viewModel.makeDraft(for: weekday)
+                        showEditor = true
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
             }
             .padding(.vertical, 6)
         }
@@ -160,22 +262,120 @@ struct ProgramExerciseDisplay: Identifiable, Hashable {
     let note: String?
 }
 
+struct ProgramExerciseDraft: Identifiable, Hashable {
+    var id: UUID = UUID()
+    var exerciseId: String
+    var name: String
+    var targetSets: Int
+    var targetReps: Int
+    var targetLoad: Double
+    var targetRPE: Double
+    var note: String
+    var order: Int
+
+    init(from scheduled: ScheduledExercise, exerciseLookup: [Exercise]) {
+        self.id = scheduled.id
+        self.exerciseId = scheduled.exerciseId
+        self.name = exerciseLookup.first(where: { $0.id == scheduled.exerciseId })?.name ?? "Exercise"
+        self.targetSets = scheduled.targetSets
+        self.targetReps = scheduled.targetReps
+        self.targetLoad = scheduled.targetLoad
+        self.targetRPE = scheduled.targetRPE
+        self.note = scheduled.note
+        self.order = scheduled.order
+    }
+
+    init(exercise: Exercise, order: Int) {
+        self.exerciseId = exercise.id
+        self.name = exercise.name
+        self.targetSets = 3
+        self.targetReps = 8
+        self.targetLoad = 0
+        self.targetRPE = 7.5
+        self.note = ""
+        self.order = order
+    }
+
+    func asScheduledExercise() -> ScheduledExercise {
+        ScheduledExercise(
+            id: id,
+            exerciseId: exerciseId,
+            order: order,
+            targetSets: targetSets,
+            targetReps: targetReps,
+            targetLoad: targetLoad,
+            targetRPE: targetRPE,
+            note: note
+        )
+    }
+}
+
+struct ProgramSessionDraft: Identifiable, Hashable {
+    var id: UUID
+    var dayOfWeek: Int
+    var name: String
+    var exercises: [ProgramExerciseDraft]
+
+    init(session: ScheduledSession, exerciseLookup: [Exercise]) {
+        self.id = session.id
+        self.dayOfWeek = session.dayOfWeek
+        self.name = session.name
+        self.exercises = session.exercises
+            .sorted { $0.order < $1.order }
+            .map { ProgramExerciseDraft(from: $0, exerciseLookup: exerciseLookup) }
+    }
+
+    init(dayOfWeek: Int, name: String, exercises: [ProgramExerciseDraft]) {
+        self.id = UUID()
+        self.dayOfWeek = dayOfWeek
+        self.name = name
+        self.exercises = exercises
+    }
+
+    mutating func reorder(from source: IndexSet, to destination: Int) {
+        exercises.move(fromOffsets: source, toOffset: destination)
+        for index in exercises.indices {
+            exercises[index].order = index
+        }
+    }
+
+    func asScheduledSession() -> ScheduledSession {
+        let scheduledExercises = exercises.enumerated().map { index, draft in
+            var updated = draft
+            updated.order = index
+            return updated.asScheduledExercise()
+        }
+
+        return ScheduledSession(id: id, dayOfWeek: dayOfWeek, name: name, exercises: scheduledExercises)
+    }
+}
+
 @MainActor
 final class ProgramViewModel: ObservableObject {
     @Published var sessions: [ProgramSessionDisplay] = []
+    @Published var validationIssues: [ProgramValidationIssue] = []
+    @Published var corrections: [ProgramCorrection] = []
+
+    let calendar: Calendar
+    let exerciseOptions: [Exercise]
 
     private let exerciseRepository: ExerciseRepositoryProtocol
-    private let calendar: Calendar
+    private let validationService: ProgramValidationServiceProtocol
+    private var activeProgram: ActiveProgram?
 
     init(
         exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve(),
+        validationService: ProgramValidationServiceProtocol = DependencyContainer.shared.resolve(),
         calendar: Calendar = .current
     ) {
         self.exerciseRepository = exerciseRepository
+        self.validationService = validationService
         self.calendar = calendar
+        self.exerciseOptions = exerciseRepository.getAllExercises().sorted { $0.name < $1.name }
     }
 
     func refresh(program: ActiveProgram?) {
+        activeProgram = program
         guard let program else {
             sessions = []
             return
@@ -211,6 +411,58 @@ final class ProgramViewModel: ObservableObject {
 
     func session(for weekday: Int) -> ProgramSessionDisplay? {
         sessions.first { $0.dayOfWeek == weekday }
+    }
+
+    func makeDraft(for weekday: Int) -> ProgramSessionDraft {
+        guard let program = activeProgram else {
+            return ProgramSessionDraft(dayOfWeek: weekday, name: "Session", exercises: [])
+        }
+
+        if let existing = program.weeklySchedule.first(where: { $0.dayOfWeek == weekday }) {
+            return ProgramSessionDraft(session: existing, exerciseLookup: exerciseOptions)
+        }
+
+        return ProgramSessionDraft(dayOfWeek: weekday, name: "New Session", exercises: [])
+    }
+
+    func save(draft: ProgramSessionDraft, appState: AppState) -> ProgramValidationResult? {
+        guard var program = activeProgram else { return nil }
+        var updatedSessions = program.weeklySchedule
+
+        let session = draft.asScheduledSession()
+        if let index = updatedSessions.firstIndex(where: { $0.id == session.id }) {
+            updatedSessions[index] = session
+        } else if let indexForDay = updatedSessions.firstIndex(where: { $0.dayOfWeek == session.dayOfWeek }) {
+            updatedSessions[indexForDay] = session
+        } else {
+            updatedSessions.append(session)
+        }
+
+        let result = appState.updateProgramSchedule(updatedSessions)
+        refresh(program: appState.activeProgram)
+        evaluate(program: appState.activeProgram)
+        return result
+    }
+
+    func apply(correction: ProgramCorrection, appState: AppState) {
+        if let result = appState.applyProgramCorrection(correction) {
+            validationIssues = result.issues
+        }
+
+        refresh(program: appState.activeProgram)
+        evaluate(program: appState.activeProgram)
+    }
+
+    func evaluate(program: ActiveProgram?) {
+        guard let program else {
+            validationIssues = []
+            corrections = []
+            return
+        }
+
+        let result = validationService.validate(program: program)
+        validationIssues = result.issues
+        corrections = validationService.suggestedCorrections(for: program)
     }
 
     func shortDayLabel(for weekday: Int) -> String {
