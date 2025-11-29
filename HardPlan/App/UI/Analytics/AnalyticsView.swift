@@ -114,7 +114,7 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var snapshots: [AnalyticsSnapshot] = []
     @Published var selectedLiftId: String?
 
-    private var liftNames: [String: String] = [:]
+    private var exercises: [Exercise] = []
     private let exerciseRepository: ExerciseRepositoryProtocol
     private let isoFormatter: ISO8601DateFormatter
     private let displayFormatter: DateFormatter
@@ -137,11 +137,14 @@ final class AnalyticsViewModel: ObservableObject {
         if !snapshots.contains(where: { $0.liftId == selectedLiftId }) {
             selectedLiftId = snapshots.first?.liftId
         }
-        hydrateLiftNames()
+        hydrateExercises()
     }
 
     func displayName(for liftId: String) -> String {
-        liftNames[liftId] ?? "Lift"
+        guard let exercise = exercises.first(where: { $0.id == liftId }) else {
+            return "Lift"
+        }
+        return exercise.shortName ?? exercise.name
     }
 
     var selectedSnapshot: AnalyticsSnapshot? {
@@ -154,9 +157,7 @@ final class AnalyticsViewModel: ObservableObject {
         return "Updated \(displayFormatter.string(from: date))"
     }
 
-    private func hydrateLiftNames() {
-        liftNames = Dictionary(uniqueKeysWithValues: exerciseRepository
-            .getAllExercises()
-            .map { ($0.id, $0.name) })
+    private func hydrateExercises() {
+        exercises = exerciseRepository.getAllExercises()
     }
 }

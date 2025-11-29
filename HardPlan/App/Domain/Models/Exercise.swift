@@ -46,6 +46,7 @@ struct MuscleImpact: Identifiable, Codable, Equatable {
 struct Exercise: Identifiable, Codable, Equatable {
     var id: String
     var name: String
+    var shortName: String?
 
     var pattern: MovementPattern
     var type: ExerciseType
@@ -63,6 +64,7 @@ struct Exercise: Identifiable, Codable, Equatable {
     init(
         id: String = UUID().uuidString,
         name: String,
+        shortName: String? = nil,
         pattern: MovementPattern,
         type: ExerciseType,
         equipment: EquipmentType,
@@ -75,6 +77,7 @@ struct Exercise: Identifiable, Codable, Equatable {
     ) {
         self.id = id
         self.name = name
+        self.shortName = shortName
         self.pattern = pattern
         self.type = type
         self.equipment = equipment
