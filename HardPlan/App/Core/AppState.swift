@@ -28,6 +28,7 @@ final class AppState: ObservableObject {
     private let analyticsService: AnalyticsServiceProtocol
     private let progressionService: ProgressionServiceProtocol
     private let programGenerator: ProgramGeneratorProtocol
+    private let programValidationService: ProgramValidationServiceProtocol
     private let persistenceController: JSONPersistenceController
 
     private let isoFormatter: ISO8601DateFormatter
@@ -42,6 +43,7 @@ final class AppState: ObservableObject {
         analyticsService: AnalyticsServiceProtocol = DependencyContainer.shared.resolve(),
         progressionService: ProgressionServiceProtocol = DependencyContainer.shared.resolve(),
         programGenerator: ProgramGeneratorProtocol = DependencyContainer.shared.resolve(),
+        programValidationService: ProgramValidationServiceProtocol = DependencyContainer.shared.resolve(),
         persistenceController: JSONPersistenceController = DependencyContainer.shared.resolve()
     ) {
         self.userRepository = userRepository
@@ -50,6 +52,7 @@ final class AppState: ObservableObject {
         self.analyticsService = analyticsService
         self.progressionService = progressionService
         self.programGenerator = programGenerator
+        self.programValidationService = programValidationService
         self.persistenceController = persistenceController
         self.workoutLogs = []
         self.analyticsSnapshots = []
@@ -110,6 +113,28 @@ final class AppState: ObservableObject {
     func persistActiveProgram() {
         guard let activeProgram else { return }
         persistenceController.save(activeProgram, to: activeProgramFilename)
+    }
+
+    func updateProgramSchedule(_ sessions: [ScheduledSession]) -> ProgramValidationResult? {
+        guard var program = activeProgram else { return nil }
+        program.weeklySchedule = sessions
+
+        let validation = programValidationService.validate(program: program)
+        guard validation.blockingIssues.isEmpty else {
+            return validation
+        }
+
+        activeProgram = program
+        persistActiveProgram()
+        refreshAnalytics()
+        refreshPostBlockAssessmentStatus()
+        return validation
+    }
+
+    func applyProgramCorrection(_ correction: ProgramCorrection) -> ProgramValidationResult? {
+        guard let program = activeProgram else { return nil }
+        let updated = correction.apply(program)
+        return updateProgramSchedule(updated.weeklySchedule)
     }
 
     private func persistUserProfile() {
