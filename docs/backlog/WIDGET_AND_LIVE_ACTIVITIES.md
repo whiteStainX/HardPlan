@@ -72,3 +72,25 @@ This feature will be implemented using **WidgetKit**. To display rich visualizat
 *   **Concept:** Use Apple's `ActivityKit` framework to display a Live Activity on the Lock Screen and in the Dynamic Island while a workout session is active.
 *   **UI:** The Live Activity could show a timer for the workout duration, the current exercise, and the current set/rep count.
 *   **Logic:** The main app would start the Live Activity when the user begins a workout and send updates as they progress through it.
+
+---
+
+## Backlog: Implement Apple-Required Launch Screen
+
+**Goal:** Provide a static, branded launch screen to comply with Apple's Human Interface Guidelines, ensuring a smooth transition from tap to app launch.
+
+**Overview:** The Launch Screen is the very first thing a user sees when they tap your app icon. It is displayed by the operating system *while* your app's process is loading into memory. It's a static placeholder and cannot run any code, play animations, or fetch data. Its purpose is to give the user instant feedback that the app is starting, preventing a perceived delay or "cold start."
+
+**Implementation Steps:**
+
+*   **Step 1.1: Design a Static Launch Image**
+    *   **Action:** Create a simple, static image that reflects the app's branding. This image should typically feature your app's logo on a solid background color that matches your app's primary theme.
+    *   **Guidelines:** Avoid text where possible, as it doesn't scale well across different devices and orientations. Focus on bold, simple graphics.
+
+*   **Step 1.2: Configure `LaunchScreen.storyboard`**
+    *   **Action:** Open or create the `LaunchScreen.storyboard` file (usually found in the project navigator).
+    *   **UI:** Use an `UIImageView` to display your designed static launch image. Ensure this image is configured with constraints (e.g., aspect fit, centered) to look good on all device sizes and orientations. You can also set a background color here.
+
+*   **Step 1.3: Verify Display**
+    *   **Action:** Thoroughly test the launch screen on various iOS devices and simulators.
+    *   **Verification:** Ensure it appears correctly (no black bars, correct scaling) and provides a seamless transition to your custom `SplashScreenView` (the animated "boot sequence"). The `LaunchScreen.storyboard` should appear instantly, then the `SplashScreenView` should fade in smoothly.
