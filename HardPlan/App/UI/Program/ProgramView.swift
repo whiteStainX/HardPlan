@@ -19,36 +19,21 @@ struct ProgramView: View {
                     .background(Color(.systemGroupedBackground))
                 } else {
                     List {
-                        if !viewModel.validationIssues.isEmpty {
-                            Section("Alerts") {
-                                ForEach(viewModel.validationIssues) { issue in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(issue.message)
-                                            .font(.subheadline)
-                                            .foregroundStyle(issue.severity == .error ? .red : .orange)
-                                        Text("Days: " + issue.affectedDays.map(viewModel.shortDayLabel).joined(separator: ", "))
-                                            .font(.footnote)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding(.vertical, 2)
-                                }
-                            }
-                        }
-
-                        if !viewModel.corrections.isEmpty {
-                            Section("Suggestions") {
-                                ForEach(viewModel.corrections) { correction in
-                                    Button {
-                                        viewModel.apply(correction: correction, appState: appState)
-                                    } label: {
-                                        HStack(alignment: .top) {
-                                            Image(systemName: "lightbulb")
-                                                .foregroundStyle(.yellow)
-                                            Text(correction.description)
-                                                .multilineTextAlignment(.leading)
-                                                .foregroundStyle(.primary)
+                        if !viewModel.ruleSummary.isEmpty {
+                            Section("Planning summary") {
+                                ForEach(viewModel.ruleSummary) { item in
+                                    HStack(alignment: .top, spacing: 12) {
+                                        Image(systemName: item.statusIcon)
+                                            .foregroundStyle(item.status == .met ? .green : .orange)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(item.title)
+                                                .font(.subheadline.weight(.semibold))
+                                            Text(item.detail)
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
                                         }
                                     }
+                                    .padding(.vertical, 4)
                                 }
                             }
                         }
@@ -75,11 +60,14 @@ struct ProgramView: View {
         }
         .onAppear {
             viewModel.refresh(program: appState.activeProgram)
-            viewModel.evaluate(program: appState.activeProgram)
+            viewModel.evaluate(program: appState.activeProgram, user: appState.userProfile)
         }
         .onChange(of: appState.activeProgram) { newValue in
             viewModel.refresh(program: newValue)
-            viewModel.evaluate(program: newValue)
+            viewModel.evaluate(program: newValue, user: appState.userProfile)
+        }
+        .onChange(of: appState.userProfile) { profile in
+            viewModel.evaluate(program: appState.activeProgram, user: profile)
         }
         .sheet(isPresented: $showEditor) {
             if let _ = editingDraft {
@@ -199,14 +187,25 @@ struct ProgramView: View {
         }
     }
 
-    private func dayBadge(text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 10)
+private func dayBadge(text: String) -> some View {
+    Text(text)
+        .font(.caption.weight(.bold))
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private extension ProgramRuleSummaryItem {
+    var statusIcon: String {
+        switch status {
+        case .met:
+            return "checkmark.seal.fill"
+        case .needsAttention:
+            return "exclamationmark.triangle.fill"
+        }
     }
 }
 
@@ -354,7 +353,7 @@ struct ProgramSessionDraft: Identifiable, Hashable {
 final class ProgramViewModel: ObservableObject {
     @Published var sessions: [ProgramSessionDisplay] = []
     @Published var validationIssues: [ProgramValidationIssue] = []
-    @Published var corrections: [ProgramCorrection] = []
+    @Published var ruleSummary: [ProgramRuleSummaryItem] = []
 
     let calendar: Calendar
     let exerciseOptions: [Exercise]
@@ -440,29 +439,20 @@ final class ProgramViewModel: ObservableObject {
 
         let result = appState.updateProgramSchedule(updatedSessions)
         refresh(program: appState.activeProgram)
-        evaluate(program: appState.activeProgram)
+        evaluate(program: appState.activeProgram, user: appState.userProfile)
         return result
     }
 
-    func apply(correction: ProgramCorrection, appState: AppState) {
-        if let result = appState.applyProgramCorrection(correction) {
-            validationIssues = result.issues
-        }
-
-        refresh(program: appState.activeProgram)
-        evaluate(program: appState.activeProgram)
-    }
-
-    func evaluate(program: ActiveProgram?) {
+    func evaluate(program: ActiveProgram?, user: UserProfile?) {
         guard let program else {
             validationIssues = []
-            corrections = []
+            ruleSummary = []
             return
         }
 
-        let result = validationService.validate(program: program)
+        let result = validationService.validate(program: program, user: user)
         validationIssues = result.issues
-        corrections = validationService.suggestedCorrections(for: program)
+        ruleSummary = result.ruleSummary
     }
 
     func shortDayLabel(for weekday: Int) -> String {

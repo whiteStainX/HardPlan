@@ -86,9 +86,11 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
     private func volumeTarget(for trainingAge: TrainingAge) -> Int {
         switch trainingAge {
         case .novice:
-            return 10
-        case .intermediate, .advanced:
+            return 11
+        case .intermediate:
             return 14
+        case .advanced:
+            return 18
         }
     }
 
@@ -180,7 +182,7 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
             targetSets: setsPerSession,
             targetReps: reps,
             targetLoad: 0,
-            targetRPE: targetRPE(for: user.goal),
+            targetRPE: targetRPE(for: user.goal, isPrimary: isPrimary, exercise: exercise),
             note: note(for: exercise),
             isWeakPointPriority: user.weakPoints.contains(muscle)
         )
@@ -226,18 +228,18 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
     private func targetReps(for goal: Goal, isPrimary: Bool) -> Int {
         switch goal {
         case .strength:
-            return isPrimary ? 5 : 8
+            return isPrimary ? 4 : 8
         case .hypertrophy:
             return isPrimary ? 8 : 12
         }
     }
 
-    private func targetRPE(for goal: Goal) -> Double {
+    private func targetRPE(for goal: Goal, isPrimary: Bool, exercise: Exercise) -> Double {
         switch goal {
         case .strength:
-            return 8.0
+            return isPrimary || exercise.isCompetitionLift ? 8.5 : 8.0
         case .hypertrophy:
-            return 7.5
+            return isPrimary ? 7.5 : 8.5
         }
     }
 
