@@ -3,6 +3,7 @@ import Combine
 
 struct WorkoutSessionView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel: WorkoutSessionViewModel
 
@@ -128,7 +129,10 @@ struct WorkoutSessionView: View {
                     completedExercises: completedExercises,
                     startedAt: viewModel.startedAt,
                     mode: viewModel.isShortOnTime ? .shortOnTime : .normal,
-                    dismissAction: { showingSummary = false }
+                    dismissAction: {
+                        showingSummary = false
+                        dismiss()
+                    }
                 )
                 .environmentObject(appState)
             }
