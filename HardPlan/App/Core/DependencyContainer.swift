@@ -79,7 +79,12 @@ final class DependencyContainer {
         registerSingleton { SubstitutionService() as SubstitutionServiceProtocol }
         registerSingleton { AnalyticsService() as AnalyticsServiceProtocol }
         registerSingleton { ProgramGenerator(exerciseRepository: self.resolve()) as ProgramGeneratorProtocol }
-        registerSingleton { ProgramValidationService(calendar: Calendar(identifier: .gregorian)) as ProgramValidationServiceProtocol }
+        registerSingleton {
+            ProgramValidationService(
+                calendar: Calendar(identifier: .gregorian),
+                exerciseRepository: self.resolve()
+            ) as ProgramValidationServiceProtocol
+        }
         registerSingleton { ExportService() as ExportServiceProtocol }
     }
 }

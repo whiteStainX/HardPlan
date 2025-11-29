@@ -12,6 +12,18 @@ struct ProgramValidationIssue: Identifiable, Equatable {
     let severity: Severity
 }
 
+struct ProgramRuleSummaryItem: Identifiable, Equatable {
+    enum Status {
+        case met
+        case needsAttention
+    }
+
+    let id = UUID()
+    let title: String
+    let detail: String
+    let status: Status
+}
+
 struct ProgramCorrection: Identifiable {
     let id = UUID()
     let description: String
@@ -20,6 +32,7 @@ struct ProgramCorrection: Identifiable {
 
 struct ProgramValidationResult {
     let issues: [ProgramValidationIssue]
+    let ruleSummary: [ProgramRuleSummaryItem]
 
     var blockingIssues: [ProgramValidationIssue] {
         issues.filter { $0.severity == .error }
@@ -27,18 +40,20 @@ struct ProgramValidationResult {
 }
 
 protocol ProgramValidationServiceProtocol {
-    func validate(program: ActiveProgram) -> ProgramValidationResult
+    func validate(program: ActiveProgram, user: UserProfile?) -> ProgramValidationResult
     func suggestedCorrections(for program: ActiveProgram) -> [ProgramCorrection]
 }
 
 final class ProgramValidationService: ProgramValidationServiceProtocol {
     private let calendar: Calendar
+    private let exerciseRepository: ExerciseRepositoryProtocol
 
-    init(calendar: Calendar = .current) {
+    init(calendar: Calendar = .current, exerciseRepository: ExerciseRepositoryProtocol = ExerciseRepository()) {
         self.calendar = calendar
+        self.exerciseRepository = exerciseRepository
     }
 
-    func validate(program: ActiveProgram) -> ProgramValidationResult {
+    func validate(program: ActiveProgram, user: UserProfile?) -> ProgramValidationResult {
         let schedule = program.weeklySchedule
         var issues: [ProgramValidationIssue] = []
 
@@ -97,7 +112,9 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
             )
         }
 
-        return ProgramValidationResult(issues: issues)
+        let ruleSummary = buildRuleSummary(schedule: schedule, user: user)
+
+        return ProgramValidationResult(issues: issues, ruleSummary: ruleSummary)
     }
 
     func suggestedCorrections(for program: ActiveProgram) -> [ProgramCorrection] {
@@ -158,5 +175,192 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
     private func mostCommonDay(in schedule: [ScheduledSession]) -> Int? {
         let counts = Dictionary(grouping: schedule, by: \.dayOfWeek).mapValues { $0.count }
         return counts.max(by: { $0.value < $1.value })?.key
+    }
+
+    private func buildRuleSummary(schedule: [ScheduledSession], user: UserProfile?) -> [ProgramRuleSummaryItem] {
+        guard !schedule.isEmpty else { return [] }
+
+        let exerciseLookup = Dictionary(uniqueKeysWithValues: exerciseRepository.getAllExercises().map { ($0.id, $0) })
+        let volumeByMuscle = calculateWeeklyVolume(schedule: schedule, exerciseLookup: exerciseLookup)
+        let frequencyByMuscle = calculateWeeklyFrequency(schedule: schedule, exerciseLookup: exerciseLookup)
+        let repDistribution = calculateRepDistribution(schedule: schedule, exerciseLookup: exerciseLookup)
+        let rpeValues = schedule.flatMap { session in
+            session.exercises.compactMap { exercise in exerciseLookup[exercise.exerciseId].map { _ in exercise.targetRPE } }
+        }
+
+        var summary: [ProgramRuleSummaryItem] = []
+
+        let outOfRangeVolume = volumeByMuscle.filter { $0.value < 10 || $0.value > 20 }
+        let volumeDetail: String
+        if outOfRangeVolume.isEmpty {
+            volumeDetail = "Weekly sets land inside the 10–20 set guideline (overlap counted)."
+        } else {
+            let adjustments = outOfRangeVolume
+                .sorted { $0.key.rawValue < $1.key.rawValue }
+                .map { "\($0.key.readableName): \(String(format: "%.1f", $0.value))" }
+                .joined(separator: ", ")
+            volumeDetail = "Adjust volume toward 10–20 weekly sets for: \(adjustments)."
+        }
+
+        summary.append(
+            ProgramRuleSummaryItem(
+                title: "Volume (10–20 sets per muscle)",
+                detail: volumeDetail,
+                status: outOfRangeVolume.isEmpty ? .met : .needsAttention
+            )
+        )
+
+        let undertrained = frequencyByMuscle.filter { $0.value < 2 }
+        let frequencyDetail: String
+        if undertrained.isEmpty {
+            frequencyDetail = "Each muscle/movement gets 2+ weekly exposures for quality and recovery."
+        } else {
+            let needsMore = undertrained
+                .sorted { $0.key.rawValue < $1.key.rawValue }
+                .map { "\($0.key.readableName) (\($0.value)x)" }
+                .joined(separator: ", ")
+            frequencyDetail = "Add another touchpoint for: \(needsMore)."
+        }
+
+        summary.append(
+            ProgramRuleSummaryItem(
+                title: "Frequency (2x/week per muscle)",
+                detail: frequencyDetail,
+                status: undertrained.isEmpty ? .met : .needsAttention
+            )
+        )
+
+        if let goal = user?.goal, repDistribution.totalSets > 0 {
+            let emphasis: (met: Bool, detail: String)
+
+            switch goal {
+            case .strength:
+                let heavyShare = repDistribution.totalSets > 0 ? repDistribution.heavyShare : 0
+                let detail = String(format: "Heavy volume: %.0f%% in the 1–6 rep range (target: ⅔–¾).", heavyShare * 100)
+                emphasis = (heavyShare >= 0.66, detail)
+            case .hypertrophy:
+                let moderateShare = repDistribution.moderateShare
+                let detail = String(format: "Working volume: %.0f%% in the 6–12 rep range (target: ⅔–¾).", moderateShare * 100)
+                emphasis = (moderateShare >= 0.66, detail)
+            }
+
+            summary.append(
+                ProgramRuleSummaryItem(
+                    title: "Rep targets for \(goal.rawValue)",
+                    detail: emphasis.detail,
+                    status: emphasis.met ? .met : .needsAttention
+                )
+            )
+        }
+
+        if !rpeValues.isEmpty {
+            let outOfRange = rpeValues.filter { $0 < 5 || $0 > 10 }
+            let status: ProgramRuleSummaryItem.Status = outOfRange.isEmpty ? .met : .needsAttention
+            let detail: String
+
+            if let min = rpeValues.min(), let max = rpeValues.max() {
+                if outOfRange.isEmpty {
+                    detail = String(format: "Intensity sits between RPE 5–10 (range: %.1f–%.1f).", min, max)
+                } else {
+                    detail = String(format: "Keep sets in the RPE 5–10 band (current range: %.1f–%.1f).", min, max)
+                }
+            } else {
+                detail = "Maintain effort within the RPE 5–10 guideline."
+            }
+
+            summary.append(
+                ProgramRuleSummaryItem(
+                    title: "Effort (RPE 5–10 emphasis)",
+                    detail: detail,
+                    status: status
+                )
+            )
+        }
+
+        return summary
+    }
+
+    private func calculateWeeklyVolume(
+        schedule: [ScheduledSession],
+        exerciseLookup: [String: Exercise]
+    ) -> [MuscleGroup: Double] {
+        var totals: [MuscleGroup: Double] = [:]
+
+        for session in schedule {
+            for exercise in session.exercises {
+                guard let catalogExercise = exerciseLookup[exercise.exerciseId] else { continue }
+
+                totals[catalogExercise.primaryMuscle, default: 0] += Double(exercise.targetSets)
+
+                for impact in catalogExercise.secondaryMuscles {
+                    totals[impact.muscle, default: 0] += Double(exercise.targetSets) * impact.factor
+                }
+            }
+        }
+
+        for muscle in MuscleGroup.allCases {
+            totals[muscle, default: 0] += 0
+        }
+
+        return totals
+    }
+
+    private func calculateWeeklyFrequency(
+        schedule: [ScheduledSession],
+        exerciseLookup: [String: Exercise]
+    ) -> [MuscleGroup: Int] {
+        var daysPerMuscle: [MuscleGroup: Set<Int>] = [:]
+
+        for session in schedule {
+            for exercise in session.exercises {
+                guard let catalogExercise = exerciseLookup[exercise.exerciseId] else { continue }
+
+                daysPerMuscle[catalogExercise.primaryMuscle, default: []].insert(session.dayOfWeek)
+                for impact in catalogExercise.secondaryMuscles {
+                    daysPerMuscle[impact.muscle, default: []].insert(session.dayOfWeek)
+                }
+            }
+        }
+
+        for muscle in MuscleGroup.allCases {
+            daysPerMuscle[muscle, default: []].formUnion([])
+        }
+
+        return daysPerMuscle.mapValues { $0.count }
+    }
+
+    private func calculateRepDistribution(
+        schedule: [ScheduledSession],
+        exerciseLookup: [String: Exercise]
+    ) -> (heavy: Int, moderate: Int, high: Int, totalSets: Int, heavyShare: Double, moderateShare: Double) {
+        var heavy = 0
+        var moderate = 0
+        var high = 0
+
+        for session in schedule {
+            for exercise in session.exercises {
+                guard exerciseLookup[exercise.exerciseId] != nil else { continue }
+
+                if exercise.targetReps <= 6 {
+                    heavy += exercise.targetSets
+                } else if exercise.targetReps <= 12 {
+                    moderate += exercise.targetSets
+                } else {
+                    high += exercise.targetSets
+                }
+            }
+        }
+
+        let total = heavy + moderate + high
+        let heavyShare = total > 0 ? Double(heavy) / Double(total) : 0
+        let moderateShare = total > 0 ? Double(moderate) / Double(total) : 0
+
+        return (heavy, moderate, high, total, heavyShare, moderateShare)
+    }
+}
+
+private extension MuscleGroup {
+    var readableName: String {
+        rawValue.replacingOccurrences(of: "_", with: " ")
     }
 }

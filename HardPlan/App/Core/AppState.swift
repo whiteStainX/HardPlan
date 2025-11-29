@@ -119,7 +119,7 @@ final class AppState: ObservableObject {
         guard var program = activeProgram else { return nil }
         program.weeklySchedule = sessions
 
-        let validation = programValidationService.validate(program: program)
+        let validation = programValidationService.validate(program: program, user: userProfile)
         guard validation.blockingIssues.isEmpty else {
             return validation
         }
