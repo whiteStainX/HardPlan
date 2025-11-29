@@ -3,10 +3,12 @@ import Combine
 
 struct WorkoutSessionView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel: WorkoutSessionViewModel
 
     @State private var restTimeRemaining: Int?
     @State private var restTimer: Timer?
+    @State private var restEndDate: Date?
     @State private var swapTarget: ExerciseEntry?
     @State private var substitutionOptions: [SubstitutionOption] = []
     @State private var substitutionError: String?
@@ -115,6 +117,10 @@ struct WorkoutSessionView: View {
         .onChange(of: appState.userProfile) { newValue in
             viewModel.updateUserProfile(newValue)
         }
+        .onChange(of: scenePhase) { newPhase in
+            guard newPhase == .active else { return }
+            updateRestTimeRemaining()
+        }
         .sheet(isPresented: $showingSummary) {
             NavigationStack {
                 WorkoutSummaryView(
@@ -181,27 +187,19 @@ struct WorkoutSessionView: View {
         let completed = viewModel.markSetComplete(exerciseId: exerciseId, setId: setId)
         if completed {
             startRestTimer(for: exerciseKey)
+        } else {
+            stopRestTimer()
         }
     }
 
     private func startRestTimer(for exerciseId: String) {
         restTimer?.invalidate()
         let duration = viewModel.recommendedRest(for: exerciseId)
-        restTimeRemaining = duration
+        restEndDate = Date().addingTimeInterval(TimeInterval(duration))
+        updateRestTimeRemaining()
 
-        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
-            guard let remaining = restTimeRemaining else {
-                timer.invalidate()
-                return
-            }
-
-            if remaining <= 0 {
-                timer.invalidate()
-                restTimeRemaining = nil
-                return
-            }
-
-            restTimeRemaining = remaining - 1
+        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            updateRestTimeRemaining()
         }
     }
 
@@ -209,6 +207,18 @@ struct WorkoutSessionView: View {
         restTimer?.invalidate()
         restTimer = nil
         restTimeRemaining = nil
+        restEndDate = nil
+    }
+
+    private func updateRestTimeRemaining() {
+        guard let endDate = restEndDate else { return }
+        let remaining = Int(endDate.timeIntervalSinceNow.rounded(.down))
+
+        if remaining <= 0 {
+            stopRestTimer()
+        } else {
+            restTimeRemaining = remaining
+        }
     }
 
     private func presentSubstitutionSheet(for entry: ExerciseEntry) {
