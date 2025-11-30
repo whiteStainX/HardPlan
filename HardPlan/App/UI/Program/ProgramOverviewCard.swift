@@ -4,17 +4,22 @@ import Charts
 struct ProgramOverviewCard: View {
     let overview: ProgramOverview
 
-    private var baselineProjection: (weekIndex: Int, value: Double)? {
-        guard let week = overview.weeks.first(where: { $0.projectedMetric != nil }), let value = week.projectedMetric else {
-            return nil
-        }
-        return (weekIndex: week.weekIndex, value: value)
+    private var baselineProjection: ProgramWeekProjection? {
+        overview.weeks.first(where: { $0.projectedMetric != nil })
     }
 
     private func normalizedProjectedValue(for week: ProgramWeekProjection) -> Double? {
-        guard let projected = week.projectedMetric, let baseline = baselineProjection?.value, baseline != 0 else {
+        guard let projected = week.projectedMetric else {
             return nil
         }
+        if let target = overview.targetValue, target != 0 {
+            return projected / target
+        }
+
+        guard let baseline = baselineProjection?.projectedMetric, baseline != 0 else {
+            return nil
+        }
+
         return projected / baseline
     }
 
@@ -82,8 +87,12 @@ struct ProgramOverviewCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let baseline = baselineProjection {
-                Text("Projected e1RM shown relative to W\(baseline.weekIndex) baseline")
+            if let target = overview.targetValue, target > 0 {
+                Text("Projected e1RM shown as % of \(Int(target)) lb target")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if let baseline = baselineProjection, let value = baseline.projectedMetric {
+                Text("Projected e1RM shown relative to W\(baseline.weekIndex) baseline (\(Int(value)) lb)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
