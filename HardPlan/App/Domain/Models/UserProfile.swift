@@ -43,6 +43,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
 
     var trainingAge: TrainingAge
     var goal: Goal
+    var goalSetting: GoalSetting?
     var availableDays: [Int]
 
     var weakPoints: [MuscleGroup]
@@ -63,6 +64,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         name: String,
         trainingAge: TrainingAge,
         goal: Goal,
+        goalSetting: GoalSetting? = nil,
         availableDays: [Int] = [],
         weakPoints: [MuscleGroup] = [],
         excludedExercises: [String] = [],
@@ -77,6 +79,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.name = name
         self.trainingAge = trainingAge
         self.goal = goal
+        self.goalSetting = goalSetting
         self.availableDays = availableDays
         self.weakPoints = weakPoints
         self.excludedExercises = excludedExercises
@@ -90,7 +93,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, trainingAge, goal, availableDays, weakPoints, excludedExercises
-        case unit, minPlateIncrement, onboardingCompleted, firstDayOfWeek, progressionOverrides, fundamentalsStatus
+        case unit, minPlateIncrement, onboardingCompleted, firstDayOfWeek, progressionOverrides, fundamentalsStatus, goalSetting
     }
 
     init(from decoder: Decoder) throws {
@@ -99,6 +102,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         name = try container.decode(String.self, forKey: .name)
         trainingAge = try container.decode(TrainingAge.self, forKey: .trainingAge)
         goal = try container.decode(Goal.self, forKey: .goal)
+        goalSetting = try container.decodeIfPresent(GoalSetting.self, forKey: .goalSetting)
         availableDays = try container.decodeIfPresent([Int].self, forKey: .availableDays) ?? []
         weakPoints = try container.decodeIfPresent([MuscleGroup].self, forKey: .weakPoints) ?? []
         excludedExercises = try container.decodeIfPresent([String].self, forKey: .excludedExercises) ?? []

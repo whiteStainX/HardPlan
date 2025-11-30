@@ -46,27 +46,58 @@ struct BlockPhaseSegment: Identifiable, Codable, Equatable {
     }
 }
 
+struct ProjectionSummary: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var baseline: Double
+    var projectedToday: Double
+    var variance: Double
+    var targetDate: String?
+    var targetValue: Double?
+
+    init(
+        id: UUID = UUID(),
+        baseline: Double,
+        projectedToday: Double,
+        variance: Double,
+        targetDate: String? = nil,
+        targetValue: Double? = nil
+    ) {
+        self.id = id
+        self.baseline = baseline
+        self.projectedToday = projectedToday
+        self.variance = variance
+        self.targetDate = targetDate
+        self.targetValue = targetValue
+    }
+}
+
 struct AnalyticsSnapshot: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     var liftId: String
     var e1RMHistory: [E1RMPoint]
+    var projectedE1RMHistory: [E1RMPoint]
     var rpeDistribution: [RPERangeBin]
     var blockPhaseSegments: [BlockPhaseSegment]
+    var projectionSummary: ProjectionSummary?
     var lastUpdatedAt: String
 
     init(
         id: UUID = UUID(),
         liftId: String,
         e1RMHistory: [E1RMPoint] = [],
+        projectedE1RMHistory: [E1RMPoint] = [],
         rpeDistribution: [RPERangeBin] = [],
         blockPhaseSegments: [BlockPhaseSegment] = [],
+        projectionSummary: ProjectionSummary? = nil,
         lastUpdatedAt: String
     ) {
         self.id = id
         self.liftId = liftId
         self.e1RMHistory = e1RMHistory
+        self.projectedE1RMHistory = projectedE1RMHistory
         self.rpeDistribution = rpeDistribution
         self.blockPhaseSegments = blockPhaseSegments
+        self.projectionSummary = projectionSummary
         self.lastUpdatedAt = lastUpdatedAt
     }
 }
