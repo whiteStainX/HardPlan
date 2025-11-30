@@ -31,7 +31,8 @@ struct OnboardingView: View {
                 case .focus:
                     TrainingFocusView(
                         goal: $viewModel.selectedGoal,
-                        weakPoints: $viewModel.weakPoints
+                        weakPoints: $viewModel.weakPoints,
+                        goalSetting: $viewModel.goalSetting
                     )
                     .toolbar(.hidden, for: .navigationBar)
                     .safeAreaInset(edge: .bottom) {

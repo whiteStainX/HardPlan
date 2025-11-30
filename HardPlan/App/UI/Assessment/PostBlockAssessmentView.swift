@@ -39,7 +39,7 @@ struct PostBlockAssessmentView: View {
                 .foregroundStyle(.secondary)
 
             if let snapshot = viewModel.snapshot {
-                E1RMChart(history: snapshot.e1RMHistory, blockPhases: snapshot.blockPhaseSegments)
+                E1RMChart(history: snapshot.e1RMHistory, projected: snapshot.projectedE1RMHistory, blockPhases: snapshot.blockPhaseSegments)
                     .frame(minHeight: 260)
                 if let label = viewModel.trendLabel {
                     Text(label)

@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Charts
 
 struct ProgramView: View {
     @EnvironmentObject private var appState: AppState
@@ -19,6 +20,12 @@ struct ProgramView: View {
                     .background(Color(.systemGroupedBackground))
                 } else {
                     List {
+                        if let overview = viewModel.overview, !overview.weeks.isEmpty {
+                            Section("Projected program overview") {
+                                ProgramOverviewCard(overview: overview)
+                            }
+                        }
+
                         if !viewModel.ruleSummary.isEmpty {
                             Section("Planning summary") {
                                 ForEach(viewModel.ruleSummary) { item in
@@ -59,15 +66,19 @@ struct ProgramView: View {
             }
         }
         .onAppear {
-            viewModel.refresh(program: appState.activeProgram)
+            viewModel.refresh(program: appState.activeProgram, user: appState.userProfile, analytics: appState.analyticsSnapshots)
             viewModel.evaluate(program: appState.activeProgram, user: appState.userProfile)
         }
         .onChange(of: appState.activeProgram) { newValue in
-            viewModel.refresh(program: newValue)
+            viewModel.refresh(program: newValue, user: appState.userProfile, analytics: appState.analyticsSnapshots)
             viewModel.evaluate(program: newValue, user: appState.userProfile)
         }
         .onChange(of: appState.userProfile) { profile in
+            viewModel.refresh(program: appState.activeProgram, user: profile, analytics: appState.analyticsSnapshots)
             viewModel.evaluate(program: appState.activeProgram, user: profile)
+        }
+        .onChange(of: appState.analyticsSnapshots) { snapshots in
+            viewModel.refresh(program: appState.activeProgram, user: appState.userProfile, analytics: snapshots)
         }
         .sheet(isPresented: $showEditor) {
             if let _ = editingDraft {
@@ -198,6 +209,79 @@ private func dayBadge(text: String) -> some View {
     }
 }
 
+struct ProgramOverviewCard: View {
+    let overview: ProgramOverview
+
+    private func intensity(for phase: BlockPhase) -> Double {
+        switch phase {
+        case .introductory: return 0.5
+        case .accumulation: return 0.7
+        case .intensification: return 0.85
+        case .realization: return 1.0
+        case .deload: return 0.4
+        }
+    }
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Periodization preview")
+                .font(.headline)
+            if let metricLabel = overview.metricLabel {
+                Text(metricLabel)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Chart {
+                ForEach(overview.weeks) { week in
+                    BarMark(
+                        x: .value("Week", "W\(week.weekIndex)"),
+                        y: .value("Phase", intensity(for: week.phase))
+                    )
+                    .foregroundStyle(by: .value("Phase", week.phase.rawValue))
+
+                    if let projected = week.projectedMetric {
+                        LineMark(
+                            x: .value("Week", "W\(week.weekIndex)"),
+                            y: .value("Projected", projected)
+                        )
+                        .interpolationMethod(.monotone)
+                        .lineStyle(StrokeStyle(lineWidth: 3))
+                        .foregroundStyle(.green)
+                    }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4))
+            }
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: .automatic(desiredCount: 5))
+            }
+            .chartXAxis {
+                AxisMarks(values: overview.weeks.map { "W\($0.weekIndex)" }) { _ in
+                    AxisValueLabel()
+                }
+            }
+            .frame(minHeight: 220)
+
+            if let firstDate = overview.weeks.first?.startDate {
+                Text("Starting \(dateFormatter.string(from: firstDate)) • Tracks upcoming 8 weeks")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
 private extension ProgramRuleSummaryItem {
     var statusIcon: String {
         switch status {
@@ -259,6 +343,20 @@ struct ProgramExerciseDisplay: Identifiable, Hashable {
     let name: String
     let prescription: String
     let note: String?
+}
+
+struct ProgramWeekProjection: Identifiable, Hashable {
+    let id: UUID = UUID()
+    let weekIndex: Int
+    let startDate: Date
+    let phase: BlockPhase
+    let projectedMetric: Double?
+}
+
+struct ProgramOverview {
+    let weeks: [ProgramWeekProjection]
+    let metricLabel: String?
+    let goalLiftId: String?
 }
 
 struct ProgramExerciseDraft: Identifiable, Hashable {
@@ -354,6 +452,7 @@ final class ProgramViewModel: ObservableObject {
     @Published var sessions: [ProgramSessionDisplay] = []
     @Published var validationIssues: [ProgramValidationIssue] = []
     @Published var ruleSummary: [ProgramRuleSummaryItem] = []
+    @Published var overview: ProgramOverview?
 
     let calendar: Calendar
     let exerciseOptions: [Exercise]
@@ -361,6 +460,9 @@ final class ProgramViewModel: ObservableObject {
     private let exerciseRepository: ExerciseRepositoryProtocol
     private let validationService: ProgramValidationServiceProtocol
     private var activeProgram: ActiveProgram?
+    private var user: UserProfile?
+    private let isoFormatter: ISO8601DateFormatter
+    private let dateOnlyFormatter: ISO8601DateFormatter
 
     init(
         exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve(),
@@ -371,12 +473,20 @@ final class ProgramViewModel: ObservableObject {
         self.validationService = validationService
         self.calendar = calendar
         self.exerciseOptions = exerciseRepository.getAllExercises().sorted { $0.name < $1.name }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        self.isoFormatter = formatter
+        let dateOnly = ISO8601DateFormatter()
+        dateOnly.formatOptions = [.withFullDate]
+        self.dateOnlyFormatter = dateOnly
     }
 
-    func refresh(program: ActiveProgram?) {
+    func refresh(program: ActiveProgram?, user: UserProfile?, analytics: [AnalyticsSnapshot]) {
         activeProgram = program
+        self.user = user
         guard let program else {
             sessions = []
+            overview = nil
             return
         }
 
@@ -406,6 +516,8 @@ final class ProgramViewModel: ObservableObject {
                     exercises: exercises
                 )
             }
+
+        overview = buildOverview(program: program, user: user, analytics: analytics)
     }
 
     func session(for weekday: Int) -> ProgramSessionDisplay? {
@@ -438,9 +550,71 @@ final class ProgramViewModel: ObservableObject {
         }
 
         let result = appState.updateProgramSchedule(updatedSessions)
-        refresh(program: appState.activeProgram)
+        refresh(program: appState.activeProgram, user: appState.userProfile, analytics: appState.analyticsSnapshots)
         evaluate(program: appState.activeProgram, user: appState.userProfile)
         return result
+    }
+
+    private func buildOverview(program: ActiveProgram, user: UserProfile?, analytics: [AnalyticsSnapshot]) -> ProgramOverview? {
+        guard let startDate = parseDate(program.startDate) else { return nil }
+        let goal = user?.goalSetting
+        let projectionPoints = projectionPoints(for: goal, analytics: analytics)
+
+        let weeks = (0..<8).compactMap { offset -> ProgramWeekProjection? in
+            guard let date = calendar.date(byAdding: .weekOfYear, value: offset, to: startDate) else { return nil }
+            let projectedValue = projectedValue(on: date, projection: projectionPoints)
+            return ProgramWeekProjection(
+                weekIndex: program.currentWeek + offset,
+                startDate: date,
+                phase: phase(for: program, offset: offset),
+                projectedMetric: projectedValue
+            )
+        }
+
+        return ProgramOverview(
+            weeks: weeks,
+            metricLabel: goal?.metric == .estimated1RM ? "Projected e1RM" : "Projected volume",
+            goalLiftId: goal?.liftId
+        )
+    }
+
+    private func phase(for program: ActiveProgram, offset: Int) -> BlockPhase {
+        let ordered: [BlockPhase] = [.introductory, .accumulation, .intensification, .realization, .deload]
+        guard let currentIndex = ordered.firstIndex(of: program.currentBlockPhase) else { return program.currentBlockPhase }
+        let index = (currentIndex + offset) % ordered.count
+        return ordered[index]
+    }
+
+    private func projectionPoints(for goal: GoalSetting?, analytics: [AnalyticsSnapshot]) -> [E1RMPoint] {
+        guard let goal, goal.metric == .estimated1RM else { return [] }
+        return analytics.first(where: { $0.liftId == goal.liftId })?.projectedE1RMHistory ?? []
+    }
+
+    private func projectedValue(on date: Date, projection: [E1RMPoint]) -> Double? {
+        guard !projection.isEmpty else { return nil }
+        let sorted = projection.compactMap { point -> (Date, Double)? in
+            guard let date = parseDate(point.date) else { return nil }
+            return (date, point.e1rm)
+        }.sorted { $0.0 < $1.0 }
+
+        guard let first = sorted.first else { return nil }
+        if date <= first.0 { return first.1 }
+        for index in 0..<(sorted.count - 1) {
+            let current = sorted[index]
+            let next = sorted[index + 1]
+            if date >= current.0 && date <= next.0 {
+                let totalDays = Double(calendar.dateComponents([.day], from: current.0, to: next.0).day ?? 1)
+                let elapsed = Double(calendar.dateComponents([.day], from: current.0, to: date).day ?? 0)
+                let ratio = max(0, min(1, elapsed / totalDays))
+                return current.1 + (next.1 - current.1) * ratio
+            }
+        }
+
+        return sorted.last?.1
+    }
+
+    private func parseDate(_ string: String) -> Date? {
+        isoFormatter.date(from: string) ?? dateOnlyFormatter.date(from: string)
     }
 
     func evaluate(program: ActiveProgram?, user: UserProfile?) {

@@ -210,7 +210,12 @@ final class AppState: ObservableObject {
             return
         }
 
-        analyticsSnapshots = analyticsService.updateSnapshots(program: activeProgram, logs: workoutLogs, calendar: preferredCalendar)
+        analyticsSnapshots = analyticsService.updateSnapshots(
+            program: activeProgram,
+            logs: workoutLogs,
+            goal: userProfile?.goalSetting,
+            calendar: preferredCalendar
+        )
     }
 
     private func refreshPostBlockAssessmentStatus() {

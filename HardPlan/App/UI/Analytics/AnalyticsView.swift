@@ -58,11 +58,21 @@ struct AnalyticsView: View {
                 .foregroundStyle(.secondary)
 
             if let snapshot = viewModel.selectedSnapshot {
-                E1RMChart(history: snapshot.e1RMHistory, blockPhases: snapshot.blockPhaseSegments)
+                E1RMChart(
+                    history: snapshot.e1RMHistory,
+                    projected: snapshot.projectedE1RMHistory,
+                    blockPhases: snapshot.blockPhaseSegments
+                )
 
                 if let updatedLabel = viewModel.lastUpdatedLabel(for: snapshot) {
                     Text(updatedLabel)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let projectionSummary = viewModel.projectionSummary(for: snapshot) {
+                    Text(projectionSummary)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -118,6 +128,7 @@ final class AnalyticsViewModel: ObservableObject {
     private let exerciseRepository: ExerciseRepositoryProtocol
     private let isoFormatter: ISO8601DateFormatter
     private let displayFormatter: DateFormatter
+    private let dateOnlyFormatter: ISO8601DateFormatter
 
     init(exerciseRepository: ExerciseRepositoryProtocol = DependencyContainer.shared.resolve()) {
         self.exerciseRepository = exerciseRepository
@@ -125,6 +136,10 @@ final class AnalyticsViewModel: ObservableObject {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         self.isoFormatter = isoFormatter
+
+        let dateOnlyFormatter = ISO8601DateFormatter()
+        dateOnlyFormatter.formatOptions = [.withFullDate]
+        self.dateOnlyFormatter = dateOnlyFormatter
 
         let displayFormatter = DateFormatter()
         displayFormatter.dateStyle = .medium
@@ -155,6 +170,20 @@ final class AnalyticsViewModel: ObservableObject {
     func lastUpdatedLabel(for snapshot: AnalyticsSnapshot) -> String? {
         guard let date = isoFormatter.date(from: snapshot.lastUpdatedAt) else { return nil }
         return "Updated \(displayFormatter.string(from: date))"
+    }
+
+    func projectionSummary(for snapshot: AnalyticsSnapshot) -> String? {
+        guard let summary = snapshot.projectionSummary else { return nil }
+        let varianceLabel = summary.variance >= 0
+            ? "ahead by \(String(format: "%.1f", summary.variance))"
+            : "behind by \(String(format: "%.1f", abs(summary.variance)))"
+
+        if let targetDate = summary.targetDate,
+           let date = isoFormatter.date(from: targetDate) ?? dateOnlyFormatter.date(from: targetDate) {
+            return "Projected vs actual: \(varianceLabel) • Target by \(displayFormatter.string(from: date))"
+        }
+
+        return "Projected vs actual: \(varianceLabel)"
     }
 
     private func hydrateExercises() {

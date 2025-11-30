@@ -19,6 +19,7 @@ final class OnboardingViewModel: ObservableObject {
 
     @Published var step: Step = .welcome
     @Published var selectedGoal: Goal = .hypertrophy
+    @Published var goalSetting: GoalSetting?
     @Published var selectedTrainingAge: TrainingAge = .novice
     @Published var availableDays: Int = 3
     @Published var weakPoints: [MuscleGroup] = [] {
@@ -119,6 +120,7 @@ final class OnboardingViewModel: ObservableObject {
             name: "Athlete",
             trainingAge: selectedTrainingAge,
             goal: selectedGoal,
+            goalSetting: goalSetting,
             availableDays: Array(1...availableDays),
             weakPoints: weakPoints,
             unit: unit,
@@ -139,6 +141,7 @@ final class OnboardingViewModel: ObservableObject {
             name: "Athlete",
             trainingAge: selectedTrainingAge,
             goal: selectedGoal,
+            goalSetting: goalSetting,
             availableDays: scheduleDays,
             weakPoints: weakPoints,
             unit: unit,

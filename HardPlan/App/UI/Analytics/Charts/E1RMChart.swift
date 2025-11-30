@@ -4,6 +4,7 @@ import Combine
 
 struct E1RMChart: View {
     let history: [E1RMPoint]
+    let projected: [E1RMPoint]
     let blockPhases: [BlockPhaseSegment]
 
     private let isoFormatter: ISO8601DateFormatter = {
@@ -20,6 +21,14 @@ struct E1RMChart: View {
 
     private var chartPoints: [ChartPoint] {
         history.compactMap { point in
+            guard let date = parseDate(point.date) else { return nil }
+            return ChartPoint(date: date, value: point.e1rm)
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    private var projectedPoints: [ChartPoint] {
+        projected.compactMap { point in
             guard let date = parseDate(point.date) else { return nil }
             return ChartPoint(date: date, value: point.e1rm)
         }
@@ -54,6 +63,18 @@ struct E1RMChart: View {
                         )
                         .foregroundStyle(.blue)
                         .symbolSize(40)
+                    }
+
+                    if !projectedPoints.isEmpty {
+                        ForEach(projectedPoints) { point in
+                            LineMark(
+                                x: .value("Projected Date", point.date),
+                                y: .value("Projected Load", point.value)
+                            )
+                            .interpolationMethod(.monotone)
+                            .foregroundStyle(.green)
+                            .lineStyle(.init(lineWidth: 2, dash: [6, 3]))
+                        }
                     }
 
                     ForEach(phaseMarkers) { marker in

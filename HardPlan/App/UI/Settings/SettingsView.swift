@@ -83,7 +83,8 @@ struct SettingsView: View {
             NavigationLink("Training Focus") {
                 TrainingFocusView(
                     goal: binding(\.goal, in: profile),
-                    weakPoints: binding(\.weakPoints, in: profile)
+                    weakPoints: binding(\.weakPoints, in: profile),
+                    goalSetting: binding(\.goalSetting, in: profile)
                 )
             }
 
@@ -279,6 +280,7 @@ private struct ScheduleSettingsView: View {
             name: profile.name,
             trainingAge: profile.trainingAge,
             goal: profile.goal,
+            goalSetting: profile.goalSetting,
             availableDays: profile.availableDays,
             weakPoints: profile.weakPoints,
             excludedExercises: profile.excludedExercises,

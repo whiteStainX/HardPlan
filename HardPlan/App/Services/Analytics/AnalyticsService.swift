@@ -10,12 +10,12 @@ protocol AnalyticsServiceProtocol {
     func calculateE1RM(load: Double, reps: Int) -> Double
     func generateHistory(logs: [WorkoutLog], exerciseId: String) -> [E1RMPoint]
     func analyzeTempo(logs: [WorkoutLog]) -> TempoWarning?
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> [AnalyticsSnapshot]
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], goal: GoalSetting?, calendar: Calendar) -> [AnalyticsSnapshot]
 }
 
 extension AnalyticsServiceProtocol {
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog]) -> [AnalyticsSnapshot] {
-        updateSnapshots(program: program, logs: logs, calendar: Calendar(identifier: .gregorian))
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], goal: GoalSetting? = nil) -> [AnalyticsSnapshot] {
+        updateSnapshots(program: program, logs: logs, goal: goal, calendar: Calendar(identifier: .gregorian))
     }
 }
 
@@ -92,7 +92,7 @@ struct AnalyticsService: AnalyticsServiceProtocol {
         return nil
     }
 
-    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], calendar: Calendar) -> [AnalyticsSnapshot] {
+    func updateSnapshots(program: ActiveProgram, logs: [WorkoutLog], goal: GoalSetting?, calendar: Calendar) -> [AnalyticsSnapshot] {
         let exercisesById = Dictionary(uniqueKeysWithValues: exerciseRepository
             .getAllExercises()
             .map { ($0.id, $0) })
@@ -104,12 +104,21 @@ struct AnalyticsService: AnalyticsServiceProtocol {
         return tier1ExerciseIds.map { liftId in
             let e1rmHistory = generateHistory(logs: logs, exerciseId: liftId)
             let rpeBins = buildRPEDistribution(logs: logs, exerciseId: liftId, calendar: calendar)
+            let projection = buildE1RMProjection(
+                for: liftId,
+                history: e1rmHistory,
+                goal: goal,
+                programStartDate: program.startDate,
+                calendar: calendar
+            )
 
             return AnalyticsSnapshot(
                 liftId: liftId,
                 e1RMHistory: e1rmHistory,
+                projectedE1RMHistory: projection.points,
                 rpeDistribution: rpeBins,
                 blockPhaseSegments: blockSegments,
+                projectionSummary: projection.summary,
                 lastUpdatedAt: lastUpdated
             )
         }
@@ -205,6 +214,80 @@ struct AnalyticsService: AnalyticsServiceProtocol {
     private func maxDate(_ lhs: Date?, _ rhs: Date) -> Date {
         guard let lhs else { return rhs }
         return max(lhs, rhs)
+    }
+
+    private func buildE1RMProjection(
+        for liftId: String,
+        history: [E1RMPoint],
+        goal: GoalSetting?,
+        programStartDate: String,
+        calendar: Calendar
+    ) -> (points: [E1RMPoint], summary: ProjectionSummary?) {
+        guard let goal, goal.liftId == liftId else { return ([], nil) }
+        guard let startDate = parseDate(programStartDate) ?? calendar.date(byAdding: .weekOfYear, value: -history.count, to: Date()) else {
+            return ([], nil)
+        }
+
+        let targetDate = parseDate(goal.targetDate ?? programStartDate) ?? calendar.date(byAdding: .weekOfYear, value: 12, to: startDate) ?? startDate
+        let baseline = goal.baselineValue ?? history.last?.e1rm ?? 0
+        let weeksToTarget = max(1, calendar.dateComponents([.weekOfYear], from: startDate, to: targetDate).weekOfYear ?? 1)
+
+        let weeklyRate: Double
+        if let override = goal.weeklyProgressRate, override > 0 {
+            weeklyRate = override
+        } else {
+            let delta = (goal.targetValue ?? baseline) - baseline
+            weeklyRate = delta / Double(weeksToTarget)
+        }
+
+        var points: [E1RMPoint] = []
+        var cursorDate = startDate
+        var current = baseline
+
+        for week in 0...weeksToTarget {
+            let date = calendar.date(byAdding: .weekOfYear, value: week, to: startDate) ?? cursorDate
+            cursorDate = date
+            points.append(E1RMPoint(date: isoFormatter.string(from: date), e1rm: current))
+            current = min(goal.targetValue ?? current + weeklyRate, current + weeklyRate)
+        }
+
+        let projectedToday = interpolateProjection(points: points, on: Date(), calendar: calendar)
+        let latestActual = history.last?.e1rm ?? baseline
+        let variance = latestActual - projectedToday
+
+        let summary = ProjectionSummary(
+            baseline: baseline,
+            projectedToday: projectedToday,
+            variance: variance,
+            targetDate: goal.targetDate,
+            targetValue: goal.targetValue
+        )
+
+        return (points, summary)
+    }
+
+    private func interpolateProjection(points: [E1RMPoint], on date: Date, calendar: Calendar) -> Double {
+        guard let first = points.first, let firstDate = parseDate(first.date) else { return 0 }
+
+        guard let targetIndex = points.firstIndex(where: { point in
+            guard let pointDate = parseDate(point.date) else { return false }
+            return pointDate >= date
+        }) else {
+            return points.last?.e1rm ?? 0
+        }
+
+        if targetIndex == 0 { return first.e1rm }
+
+        let lowerPoint = points[targetIndex - 1]
+        let upperPoint = points[targetIndex]
+        guard let lowerDate = parseDate(lowerPoint.date), let upperDate = parseDate(upperPoint.date) else { return upperPoint.e1rm }
+
+        let totalDays = Double(calendar.dateComponents([.day], from: lowerDate, to: upperDate).day ?? 1)
+        let elapsed = Double(calendar.dateComponents([.day], from: lowerDate, to: date).day ?? 0)
+        if totalDays <= 0 { return upperPoint.e1rm }
+
+        let ratio = max(0, min(1, elapsed / totalDays))
+        return lowerPoint.e1rm + (upperPoint.e1rm - lowerPoint.e1rm) * ratio
     }
 
     private func parseDate(_ string: String) -> Date? {
