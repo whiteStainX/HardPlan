@@ -190,6 +190,26 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
 
         var summary: [ProgramRuleSummaryItem] = []
 
+        if let trainingAge = user?.trainingAge {
+            let blueprintDetail: String
+            switch trainingAge {
+            case .novice:
+                blueprintDetail = "Novice baseline: 10–12 sets/week per muscle using single progression. Add 2.5–10 lbs when targets are hit; if you miss twice, reset ~10% before rebuilding."
+            case .intermediate:
+                blueprintDetail = "Intermediate baseline: 13–15 sets/week per muscle with 3-week wave loading on compounds and double progression on accessories. Deload if 2+ fatigue flags appear or every third mesocycle."
+            case .advanced:
+                blueprintDetail = "Advanced baseline: 16–20 sets/week per muscle organized in accumulation and intensification blocks. Start a new block with ~75% volume and ~1 RPE lower before ramping."
+            }
+
+            summary.append(
+                ProgramRuleSummaryItem(
+                    title: "Training age blueprint",
+                    detail: blueprintDetail,
+                    status: .met
+                )
+            )
+        }
+
         let outOfRangeVolume = volumeByMuscle.filter { $0.value < 10 || $0.value > 20 }
         let volumeDetail: String
         if outOfRangeVolume.isEmpty {
@@ -202,10 +222,26 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
             volumeDetail = "Adjust volume toward 10–20 weekly sets for: \(adjustments)."
         }
 
+        let volumeWithBaseline: String
+        if let trainingAge = user?.trainingAge {
+            let baseline: String
+            switch trainingAge {
+            case .novice:
+                baseline = "Baseline target: 10–12 sets per muscle."
+            case .intermediate:
+                baseline = "Baseline target: 13–15 sets per muscle."
+            case .advanced:
+                baseline = "Baseline target: 16–20 sets per muscle."
+            }
+            volumeWithBaseline = [volumeDetail, baseline].joined(separator: " ")
+        } else {
+            volumeWithBaseline = volumeDetail
+        }
+
         summary.append(
             ProgramRuleSummaryItem(
                 title: "Volume (10–20 sets per muscle)",
-                detail: volumeDetail,
+                detail: volumeWithBaseline,
                 status: outOfRangeVolume.isEmpty ? .met : .needsAttention
             )
         )
@@ -236,11 +272,11 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
             switch goal {
             case .strength:
                 let heavyShare = repDistribution.totalSets > 0 ? repDistribution.heavyShare : 0
-                let detail = String(format: "Heavy volume: %.0f%% in the 1–6 rep range (target: ⅔–¾).", heavyShare * 100)
+                let detail = String(format: "Heavy volume: %.0f%% in the 1–6 rep range (target: ⅔–¾). Keep the remaining sets in the 6–12 range to support muscle gain.", heavyShare * 100)
                 emphasis = (heavyShare >= 0.66, detail)
             case .hypertrophy:
                 let moderateShare = repDistribution.moderateShare
-                let detail = String(format: "Working volume: %.0f%% in the 6–12 rep range (target: ⅔–¾).", moderateShare * 100)
+                let detail = String(format: "Working volume: %.0f%% in the 6–12 rep range (target: ⅔–¾). Use remaining sets either heavier (1–6) or lighter (12–20) for balance.", moderateShare * 100)
                 emphasis = (moderateShare >= 0.66, detail)
             }
 
@@ -260,7 +296,7 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
 
             if let min = rpeValues.min(), let max = rpeValues.max() {
                 if outOfRange.isEmpty {
-                    detail = String(format: "Intensity sits between RPE 5–10 (range: %.1f–%.1f).", min, max)
+                    detail = String(format: "Intensity sits between RPE 5–10 (range: %.1f–%.1f). Intro weeks should ride ~1 RPE lower before climbing.", min, max)
                 } else {
                     detail = String(format: "Keep sets in the RPE 5–10 band (current range: %.1f–%.1f).", min, max)
                 }
@@ -273,6 +309,17 @@ final class ProgramValidationService: ProgramValidationServiceProtocol {
                     title: "Effort (RPE 5–10 emphasis)",
                     detail: detail,
                     status: status
+                )
+            )
+        }
+
+        if let trainingAge = user?.trainingAge, trainingAge != .novice {
+            let detail = "After each 3–4 week wave or block, check sleep, stress, aches, and motivation. If two or more are off, schedule a deload with ~50% volume; force one every third mesocycle regardless."
+            summary.append(
+                ProgramRuleSummaryItem(
+                    title: "Deload & fatigue checks",
+                    detail: detail,
+                    status: .met
                 )
             )
         }

@@ -53,12 +53,13 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
         }
 
         let baseVolume = volumeTarget(for: user.trainingAge)
+        let introAdjustedVolume = introductoryAdjustedVolume(baseVolume)
         let muscleHitCounts = countMuscleHits(in: sessionPlans, weakPoints: programUser.weakPoints)
 
         let weeklySchedule = buildSchedule(
             from: sessionPlans,
             user: programUser,
-            baseVolume: baseVolume,
+            baseVolume: introAdjustedVolume,
             muscleHitCounts: muscleHitCounts
         )
 
@@ -92,6 +93,11 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
         case .advanced:
             return 18
         }
+    }
+
+    private func introductoryAdjustedVolume(_ baseVolume: Int) -> Int {
+        let adjusted = Int(round(Double(baseVolume) * 0.75))
+        return max(6, adjusted)
     }
 
     private func buildSchedule(
@@ -182,8 +188,18 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
             targetSets: setsPerSession,
             targetReps: reps,
             targetLoad: 0,
-            targetRPE: targetRPE(for: user.goal, isPrimary: isPrimary, exercise: exercise),
-            note: note(for: exercise),
+            targetRPE: targetRPE(
+                for: user.goal,
+                isPrimary: isPrimary,
+                exercise: exercise,
+                trainingAge: user.trainingAge
+            ),
+            note: note(
+                for: exercise,
+                goal: user.goal,
+                trainingAge: user.trainingAge,
+                isPrimary: isPrimary
+            ),
             isWeakPointPriority: user.weakPoints.contains(muscle)
         )
 
@@ -234,17 +250,72 @@ struct ProgramGenerator: ProgramGeneratorProtocol {
         }
     }
 
-    private func targetRPE(for goal: Goal, isPrimary: Bool, exercise: Exercise) -> Double {
+    private func targetRPE(
+        for goal: Goal,
+        isPrimary: Bool,
+        exercise: Exercise,
+        trainingAge: TrainingAge
+    ) -> Double {
+        let base: Double
         switch goal {
         case .strength:
-            return isPrimary || exercise.isCompetitionLift ? 8.5 : 8.0
+            base = isPrimary || exercise.isCompetitionLift ? 8.5 : 8.0
         case .hypertrophy:
-            return isPrimary ? 7.5 : 8.5
+            base = isPrimary ? 7.5 : 8.5
         }
+
+        let trainingAgeOffset: Double
+        switch trainingAge {
+        case .novice:
+            trainingAgeOffset = -0.5
+        case .intermediate:
+            trainingAgeOffset = 0
+        case .advanced:
+            trainingAgeOffset = 0.5
+        }
+
+        let introductoryOffset = -1.0
+        let target = base + trainingAgeOffset + introductoryOffset
+
+        return min(10.0, max(5.0, target))
     }
 
-    private func note(for exercise: Exercise) -> String {
-        exercise.isCompetitionLift ? "Main lift focus" : ""
+    private func note(
+        for exercise: Exercise,
+        goal: Goal,
+        trainingAge: TrainingAge,
+        isPrimary: Bool
+    ) -> String {
+        var components: [String] = []
+
+        if exercise.isCompetitionLift {
+            components.append("Main lift focus")
+        }
+
+        switch trainingAge {
+        case .novice:
+            components.append("Single progression: keep reps steady, add 2.5–10 lbs when all sets land at target.")
+            components.append("Miss targets twice? Drop ~10% then rebuild.")
+        case .intermediate:
+            if isPrimary {
+                components.append("Use 3-week wave loading (reps trend down as load trends up).")
+            } else {
+                components.append("Double progression: push reps to the top of the range before adding load.")
+            }
+            components.append("If fatigue climbs, plan a light deload week after the wave.")
+        case .advanced:
+            components.append("Block focus: accumulate with extra sets/reps, then intensify with heavier, lower-rep work.")
+            components.append("Intro week runs at ~75% volume and ~1 RPE lower to manage fatigue.")
+        }
+
+        switch goal {
+        case .strength:
+            components.append("Keep ~⅔ of work in the 1–6 rep range; use accessories to fill remaining volume.")
+        case .hypertrophy:
+            components.append("Aim for most work in the 6–12 rep range; higher reps are fine on accessories.")
+        }
+
+        return components.joined(separator: " ")
     }
 
     private func buildProgressionData(
