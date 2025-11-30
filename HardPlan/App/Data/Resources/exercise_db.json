@@ -546,5 +546,480 @@
         "tier": "Tier3",
         "isCompetitionLift": false,
         "isUserCreated": false
+    },
+    {
+        "id": "renegade_lunge_dumbbell",
+        "name": "Renegade Lunge",
+        "pattern": "Lunge",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Quads",
+        "secondaryMuscles": [
+            {
+                "id": "12e5d643-cef3-4913-91dd-c3802d9fad92",
+                "muscle": "Glutes",
+                "factor": 0.8
+            },
+            {
+                "id": "f9b00fbd-b384-425b-b90e-bcc038d0027b",
+                "muscle": "Hamstrings",
+                "factor": 0.4
+            },
+            {
+                "id": "efc982b1-352a-4331-b4fc-ea1ff7934e89",
+                "muscle": "Abs",
+                "factor": 0.5
+            }
+        ],
+        "defaultTempo": "2-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "side_press_dumbbell",
+        "name": "Side Press (Bent Press)",
+        "shortName": "Side Press",
+        "pattern": "Push_Vertical",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Delts_Side",
+        "secondaryMuscles": [
+            {
+                "id": "bf185210-9110-4d82-825f-717e02f93f71",
+                "muscle": "Back_Lats",
+                "factor": 0.6
+            },
+            {
+                "id": "40cb6ec1-82a3-43de-ae50-4ec2e2584fc6",
+                "muscle": "Back_Lower",
+                "factor": 0.5
+            },
+            {
+                "id": "dc7293fe-f5dc-4ce2-9820-dc6b8f8de911",
+                "muscle": "Triceps",
+                "factor": 0.5
+            },
+            {
+                "id": "bffbdb8d-5b08-4d34-8d11-a0fd9f19b103",
+                "muscle": "Abs",
+                "factor": 0.5
+            }
+        ],
+        "defaultTempo": "3-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "floor_press_barbell",
+        "name": "Floor Press",
+        "pattern": "Push_Horizontal",
+        "type": "Compound",
+        "equipment": "Barbell",
+        "primaryMuscle": "Chest",
+        "secondaryMuscles": [
+            {
+                "id": "4a712600-56df-4ed0-85a7-79a8b0958ef9",
+                "muscle": "Triceps",
+                "factor": 0.8
+            },
+            {
+                "id": "81b88551-2b84-4aa5-b712-5a02fe4e8efd",
+                "muscle": "Delts_Front",
+                "factor": 0.5
+            }
+        ],
+        "defaultTempo": "2-1-1-0",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "one_arm_barbell_row",
+        "name": "One-Arm Barbell Row",
+        "pattern": "Pull_Horizontal",
+        "type": "Compound",
+        "equipment": "Barbell",
+        "primaryMuscle": "Back_Lats",
+        "secondaryMuscles": [
+            {
+                "id": "b01810dc-ac1f-41ed-9be3-a33a80116931",
+                "muscle": "Back_Traps",
+                "factor": 0.6
+            },
+            {
+                "id": "d34ee273-d470-4fa9-8e3e-7937443abdac",
+                "muscle": "Biceps",
+                "factor": 0.6
+            },
+            {
+                "id": "1b1b037f-7626-45ae-bba2-dc3030ad586a",
+                "muscle": "Back_Lower",
+                "factor": 0.5
+            },
+            {
+                "id": "7314b5a7-c0d7-4ca4-baa6-0219ce04dc81",
+                "muscle": "Abs",
+                "factor": 0.5
+            }
+        ],
+        "defaultTempo": "2-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "zercher_squat_barbell",
+        "name": "Zercher Squat",
+        "pattern": "Squat",
+        "type": "Compound",
+        "equipment": "Barbell",
+        "primaryMuscle": "Quads",
+        "secondaryMuscles": [
+            {
+                "id": "0ac00a72-139f-4c56-bdce-873a2770bea4",
+                "muscle": "Glutes",
+                "factor": 1.0
+            },
+            {
+                "id": "fdac00b0-49ad-4cb5-b012-0306b7c00106",
+                "muscle": "Back_Lower",
+                "factor": 0.6
+            },
+            {
+                "id": "0def9b97-b0a1-480a-8919-9750437ec4d1",
+                "muscle": "Abs",
+                "factor": 0.5
+            }
+        ],
+        "defaultTempo": "3-1-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "single_leg_rdl_dumbbell",
+        "name": "Single-Leg Romanian Deadlift",
+        "shortName": "Single-Leg RDL",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Hamstrings",
+        "secondaryMuscles": [
+            {
+                "id": "11086090-698c-44e1-871c-b070d5ee9468",
+                "muscle": "Glutes",
+                "factor": 0.8
+            },
+            {
+                "id": "c2236901-7517-4433-8ac2-6340520d154e",
+                "muscle": "Back_Lower",
+                "factor": 0.5
+            },
+            {
+                "id": "ac4c46fd-e94e-4570-ae66-b3ef46101d63",
+                "muscle": "Abs",
+                "factor": 0.4
+            }
+        ],
+        "defaultTempo": "3-1-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "suitcase_deadlift_barbell",
+        "name": "Suitcase Deadlift",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Barbell",
+        "primaryMuscle": "Hamstrings",
+        "secondaryMuscles": [
+            {
+                "id": "f85f49e2-8a34-466a-bf24-9d503b271d71",
+                "muscle": "Glutes",
+                "factor": 0.8
+            },
+            {
+                "id": "59a783e4-23f5-43fa-84d5-a600200a5284",
+                "muscle": "Back_Lower",
+                "factor": 0.7
+            },
+            {
+                "id": "c8636950-f615-43da-ba4e-9808b90cc4bd",
+                "muscle": "Abs",
+                "factor": 0.6
+            }
+        ],
+        "defaultTempo": "2-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "bulgarian_split_squat_dumbbell",
+        "name": "Bulgarian Split Squat",
+        "pattern": "Lunge",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Quads",
+        "secondaryMuscles": [
+            {
+                "id": "e41b7fe3-3e68-42f6-a8e9-124cc7cf2efb",
+                "muscle": "Glutes",
+                "factor": 0.8
+            }
+        ],
+        "defaultTempo": "3-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "kettlebell_swing_hardstyle",
+        "name": "Kettlebell Swing (Hardstyle)",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Hamstrings",
+        "secondaryMuscles": [
+            {
+                "id": "a8c62867-a1fb-4ee7-b44a-37fdce05348b",
+                "muscle": "Glutes",
+                "factor": 0.8
+            },
+            {
+                "id": "2673ed7e-6056-4513-8cfe-bcbd2b8255e5",
+                "muscle": "Abs",
+                "factor": 0.5
+            },
+            {
+                "id": "f5539469-2ce7-4575-b496-986186d1f1c2",
+                "muscle": "Back_Lower",
+                "factor": 0.4
+            }
+        ],
+        "defaultTempo": "1-0-x-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "turkish_get_up_dumbbell",
+        "name": "Turkish Get-Up",
+        "shortName": "TGU",
+        "pattern": "Isolation",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Abs",
+        "secondaryMuscles": [
+            {
+                "id": "85e29530-0c14-4344-bdf3-d353a6c25278",
+                "muscle": "Delts_Front",
+                "factor": 0.6
+            },
+            {
+                "id": "1f21e03f-f02e-4c4e-a6fa-577003fef03d",
+                "muscle": "Glutes",
+                "factor": 0.5
+            },
+            {
+                "id": "b93d09c8-bae9-40b0-84f2-fbd54d7ef6ea",
+                "muscle": "Back_Lower",
+                "factor": 0.4
+            }
+        ],
+        "defaultTempo": "3-0-3-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "kettlebell_clean_press",
+        "name": "Kettlebell Clean & Press",
+        "pattern": "Push_Vertical",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Delts_Front",
+        "secondaryMuscles": [
+            {
+                "id": "a8cd4d5b-d4c6-4138-b89c-c04c950bd126",
+                "muscle": "Back_Lats",
+                "factor": 0.5
+            },
+            {
+                "id": "e34b0d0d-9ed2-4bef-bad7-87f8b4d34056",
+                "muscle": "Triceps",
+                "factor": 0.6
+            },
+            {
+                "id": "f5be9852-5aae-4f87-abb8-1f7dfc473a2c",
+                "muscle": "Glutes",
+                "factor": 0.5
+            },
+            {
+                "id": "28dfd440-9820-46c1-a770-547471b8f5eb",
+                "muscle": "Abs",
+                "factor": 0.4
+            }
+        ],
+        "defaultTempo": "1-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "jefferson_deadlift_barbell",
+        "name": "Jefferson Deadlift",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Barbell",
+        "primaryMuscle": "Hamstrings",
+        "secondaryMuscles": [
+            {
+                "id": "3b891455-50d7-45fc-96f9-5ef862bd4870",
+                "muscle": "Glutes",
+                "factor": 0.8
+            },
+            {
+                "id": "8ca18e6d-1c72-4029-9459-e6852cb7fbbe",
+                "muscle": "Quads",
+                "factor": 0.5
+            },
+            {
+                "id": "8aebfd36-8a83-42e4-bf11-67d7b27076cb",
+                "muscle": "Back_Lower",
+                "factor": 0.6
+            },
+            {
+                "id": "2da5f7a1-02df-4af5-bca6-f864502529c8",
+                "muscle": "Abs",
+                "factor": 0.5
+            }
+        ],
+        "defaultTempo": "2-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "good_morning_barbell",
+        "name": "Good Morning",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Barbell",
+        "primaryMuscle": "Hamstrings",
+        "secondaryMuscles": [
+            {
+                "id": "2db77e89-c68b-4ff7-9bb3-16bb43e033e9",
+                "muscle": "Glutes",
+                "factor": 0.6
+            },
+            {
+                "id": "33710e14-8864-4c5c-9c9d-41b58ed5ad16",
+                "muscle": "Back_Lower",
+                "factor": 0.6
+            }
+        ],
+        "defaultTempo": "3-1-1-1",
+        "tier": "Tier3",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "farmer_carry_dumbbell",
+        "name": "Farmer Carry",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Back_Traps",
+        "secondaryMuscles": [
+            {
+                "id": "b10bdf5a-69c6-4f0c-b838-de63ad419bee",
+                "muscle": "Abs",
+                "factor": 0.5
+            },
+            {
+                "id": "5aacb18d-79a4-405d-aace-5423c70fcdba",
+                "muscle": "Back_Lower",
+                "factor": 0.4
+            },
+            {
+                "id": "9f576a6b-1e7b-418e-be04-ddbb9339587f",
+                "muscle": "Glutes",
+                "factor": 0.3
+            }
+        ],
+        "defaultTempo": "1-0-1-0",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "suitcase_carry_dumbbell",
+        "name": "Suitcase Carry",
+        "pattern": "Hinge",
+        "type": "Compound",
+        "equipment": "Dumbbell",
+        "primaryMuscle": "Abs",
+        "secondaryMuscles": [
+            {
+                "id": "5ab7538d-fafe-4307-9009-fc0a975e0ec4",
+                "muscle": "Back_Traps",
+                "factor": 0.5
+            },
+            {
+                "id": "7c4366e8-251c-4b4c-881b-727cfdcbec48",
+                "muscle": "Back_Lower",
+                "factor": 0.5
+            },
+            {
+                "id": "340ac013-a2d1-41e9-9e6c-026aaa1a9379",
+                "muscle": "Glutes",
+                "factor": 0.3
+            }
+        ],
+        "defaultTempo": "1-0-1-0",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "parallel_bar_dip",
+        "name": "Parallel Bar Dip",
+        "pattern": "Push_Vertical",
+        "type": "Compound",
+        "equipment": "Bodyweight",
+        "primaryMuscle": "Chest",
+        "secondaryMuscles": [
+            {
+                "id": "adf905c9-efdf-4786-8d11-d140b6a3ffe4",
+                "muscle": "Delts_Front",
+                "factor": 0.6
+            },
+            {
+                "id": "cc7b45c7-5799-4da4-818e-cdf8972bc96d",
+                "muscle": "Triceps",
+                "factor": 0.8
+            }
+        ],
+        "defaultTempo": "2-0-1-1",
+        "tier": "Tier2",
+        "isCompetitionLift": false,
+        "isUserCreated": false
+    },
+    {
+        "id": "hanging_leg_raise",
+        "name": "Hanging Leg Raise",
+        "pattern": "Isolation",
+        "type": "Isolation",
+        "equipment": "Bodyweight",
+        "primaryMuscle": "Abs",
+        "secondaryMuscles": [],
+        "defaultTempo": "2-1-2-1",
+        "tier": "Tier3",
+        "isCompetitionLift": false,
+        "isUserCreated": false
     }
 ]
