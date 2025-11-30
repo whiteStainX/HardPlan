@@ -6,10 +6,10 @@ final class OnboardingViewModel: ObservableObject {
     enum Step: Int, CaseIterable {
         case welcome
         case goal
+        case units
         case focus
         case experience
         case schedule
-        case units
         case generating
 
         var progress: Double {
@@ -56,6 +56,10 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func advanceFromGoal() {
+        step = .units
+    }
+
+    func advanceFromUnits() {
         step = .focus
     }
 
@@ -76,10 +80,6 @@ final class OnboardingViewModel: ObservableObject {
     func updateAvailableDays(_ days: Int) {
         availableDays = max(2, min(6, days))
         regenerateBlocks()
-    }
-
-    func advanceFromSchedule() {
-        step = .units
     }
 
     func startGeneratingProfile() {

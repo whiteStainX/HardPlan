@@ -37,6 +37,10 @@ struct TrainingFocusView: View {
             }
 
             Section("Goal target") {
+                Text("Your target e1RM is the estimated one-rep max for your chosen primary lift. Pick a realistic milestone (e.g. 2–5% in 4–8 weeks) to guide weekly progress.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
                 Picker("Primary lift", selection: Binding(
                     get: { goalSetting?.liftId ?? exercises.first?.id ?? "" },
                     set: { newValue in ensureGoal(); goalSetting?.liftId = newValue }

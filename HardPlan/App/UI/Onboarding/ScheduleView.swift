@@ -25,7 +25,7 @@ struct ScheduleView: View {
             HStack {
                 Button("Back", action: onBack)
                 Spacer()
-                Button("Continue", action: onNext)
+                Button("Generate Plan", action: onNext)
                     .buttonStyle(.borderedProminent)
             }
         }
