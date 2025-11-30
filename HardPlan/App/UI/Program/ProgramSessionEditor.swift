@@ -23,17 +23,22 @@ struct ProgramSessionEditor: View {
                         Text("Add exercises to this session.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach($draft.exercises) { $exercise in
+                        ForEach($draft.exercises) { exerciseBinding in
                             ExerciseEditorRow(
-                                exercise: $exercise,
+                                exercise: exerciseBinding,
                                 exerciseOptions: exerciseOptions
                             )
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                let exerciseId = exerciseBinding.wrappedValue.id
+                                Button(role: .destructive) {
+                                    draft.exercises.removeAll { $0.id == exerciseId }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                         .onMove { indices, newOffset in
                             draft.reorder(from: indices, to: newOffset)
-                        }
-                        .onDelete { indices in
-                            draft.exercises.remove(atOffsets: indices)
                         }
                     }
 
@@ -47,14 +52,12 @@ struct ProgramSessionEditor: View {
             .navigationTitle("Edit Session")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save", action: onSave)
                         .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .environment(\.editMode, .constant(.active))
         }
     }
 

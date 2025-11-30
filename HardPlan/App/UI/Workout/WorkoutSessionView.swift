@@ -201,18 +201,9 @@ struct WorkoutSessionView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 8) {
-                    Button {
-                        presentSubstitutionSheet(for: entry.wrappedValue)
-                    } label: {
-                        Label("Swap", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                    .buttonStyle(.bordered)
-
-                    ProgressView(value: entry.wrappedValue.completionProgress)
-                        .progressViewStyle(.linear)
-                        .frame(width: 140)
-                }
+                ProgressView(value: entry.wrappedValue.completionProgress)
+                    .progressViewStyle(.linear)
+                    .frame(width: 140)
             }
 
             ForEach(entry.sets) { $set in
@@ -227,30 +218,32 @@ struct WorkoutSessionView: View {
                 )
             }
 
-            HStack {
-                Button {
-                    viewModel.addSet(to: entry.id)
-                } label: {
-                    Label("Add Set", systemImage: "plus")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button(role: .destructive) {
-                    exerciseToDelete = entry.wrappedValue
-                } label: {
-                    Label("Remove Exercise", systemImage: "trash")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
+            Button {
+                viewModel.addSet(to: entry.id)
+            } label: {
+                Label("Add Set", systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.bordered)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
+        .contextMenu {
+            Button {
+                presentSubstitutionSheet(for: entry.wrappedValue)
+            } label: {
+                Label("Swap", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            Button(role: .destructive) {
+                exerciseToDelete = entry.wrappedValue
+            } label: {
+                Label("Remove Exercise", systemImage: "trash")
+            }
+        }
     }
 
     private func completeSet(exerciseId: UUID, setId: UUID, exerciseKey: String) {
@@ -331,11 +324,6 @@ private struct SetRowView: View {
                 Text(targetDescription)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Button(action: removeAction) {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
             }
 
             HStack(spacing: 12) {
@@ -380,6 +368,12 @@ private struct SetRowView: View {
         .padding(12)
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive, action: removeAction) {
+                Label("Delete Set", systemImage: "trash")
+            }
+            .accessibilityLabel("Delete set \(set.setNumber)")
+        }
     }
 }
 
