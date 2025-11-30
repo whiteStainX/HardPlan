@@ -28,6 +28,22 @@ struct OnboardingView: View {
                         onNext: viewModel.advanceFromGoal,
                         onBack: { viewModel.step = .welcome }
                     )
+                case .units:
+                    UnitSettingsView(
+                        unit: $viewModel.unit,
+                        minPlateIncrement: $viewModel.minPlateIncrement
+                    )
+                    .toolbar(.hidden, for: .navigationBar)
+                    .safeAreaInset(edge: .bottom) {
+                        HStack {
+                            Button("Back") { viewModel.step = .goal }
+                            Spacer()
+                            Button("Continue", action: viewModel.advanceFromUnits)
+                                .buttonStyle(.borderedProminent)
+                        }
+                        .padding()
+                        .background(.ultraThinMaterial)
+                    }
                 case .focus:
                     TrainingFocusView(
                         goal: $viewModel.selectedGoal,
@@ -37,7 +53,7 @@ struct OnboardingView: View {
                     .toolbar(.hidden, for: .navigationBar)
                     .safeAreaInset(edge: .bottom) {
                         HStack {
-                            Button("Back") { viewModel.step = .goal }
+                            Button("Back") { viewModel.step = .units }
                             Spacer()
                             Button("Continue", action: viewModel.advanceFromFocus)
                                 .buttonStyle(.borderedProminent)
@@ -64,25 +80,9 @@ struct OnboardingView: View {
                         blocks: viewModel.weeklyBlocks,
                         startWeekday: viewModel.preferredFirstDayOfWeek,
                         warningText: viewModel.adherenceWarning(),
-                        onNext: viewModel.advanceFromSchedule,
+                        onNext: viewModel.startGeneratingProfile,
                         onBack: { viewModel.step = .experience }
                     )
-                case .units:
-                    UnitSettingsView(
-                        unit: $viewModel.unit,
-                        minPlateIncrement: $viewModel.minPlateIncrement
-                    )
-                    .toolbar(.hidden, for: .navigationBar)
-                    .safeAreaInset(edge: .bottom) {
-                        HStack {
-                            Button("Back") { viewModel.step = .schedule }
-                            Spacer()
-                            Button("Generate Plan", action: viewModel.startGeneratingProfile)
-                                .buttonStyle(.borderedProminent)
-                        }
-                        .padding()
-                        .background(.ultraThinMaterial)
-                    }
                 case .generating:
                     GeneratingView()
                 }
@@ -114,14 +114,14 @@ struct OnboardingView: View {
             return "Step 1 of 6: Welcome"
         case .goal:
             return "Step 2 of 6: Goal"
-        case .focus:
-            return "Step 3 of 6: Focus"
-        case .experience:
-            return "Step 4 of 6: Training Age"
-        case .schedule:
-            return "Step 5 of 6: Schedule"
         case .units:
-            return "Step 6 of 6: Units"
+            return "Step 3 of 6: Units"
+        case .focus:
+            return "Step 4 of 6: Focus"
+        case .experience:
+            return "Step 5 of 6: Training Age"
+        case .schedule:
+            return "Step 6 of 6: Schedule"
         case .generating:
             return "Generating your program"
         }
