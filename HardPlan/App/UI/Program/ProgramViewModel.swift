@@ -29,6 +29,7 @@ struct ProgramOverview {
     let weeks: [ProgramWeekProjection]
     let metricLabel: String?
     let goalLiftId: String?
+    let targetValue: Double?
 }
 
 struct ProgramExerciseDraft: Identifiable, Hashable {
@@ -246,7 +247,8 @@ final class ProgramViewModel: ObservableObject {
         return ProgramOverview(
             weeks: weeks,
             metricLabel: goal?.metric == .estimated1RM ? "Projected e1RM" : "Projected volume",
-            goalLiftId: goal?.liftId
+            goalLiftId: goal?.liftId,
+            targetValue: goal?.metric == .estimated1RM ? goal?.targetValue : nil
         )
     }
 
